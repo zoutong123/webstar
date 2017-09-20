@@ -1,0 +1,392 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="IPODetail" id="IPODetail">
+        <div class="z-detail-hl aui-pull-left" @click="IPOIntro(info.id, info.nickname)">
+            <img class="z-ipo-img" src="" :src="info.coverPhotoURL" alt="">
+            <img v-if="info.state == 0" class="z-rengouImg" src="../../image/rengou.png" alt="">
+        </div>
+        <div class="z-detail-hr aui-pull-right">
+            <div class="z-ipo-info">
+                <div class="z-info-1 aui-ellipsis-1">{{info.nickname}}<span>({{info.stockCode}})</span></div>
+                <div v-if="info.type == 1" class="z-info-2 aui-ellipsis-1 z-price-1">{{info.Arbitrage}}%</div>
+                <div v-if="info.type == 2" class="z-info-2 aui-ellipsis-1 z-price-2">{{info.Arbitrage}}%</div>
+                <div class="z-info-3 aui-ellipsis-1 aui-font-size-12">平台: {{info.showPlatform}}</div>
+                <div v-if="checkIsCollect == 1" class="z-info-4 aui-ellipsis-1" @click="collectIPO(0)">
+                    <span class="aui-ellipsis-1 z-fav">已收藏</span>
+                </div>
+                <div v-else class="z-info-4 aui-ellipsis-1" @click="collectIPO(1)">
+                    <span class="aui-ellipsis-1">收藏</span>
+                </div>
+                <div class="z-info-3 z-info-5 aui-ellipsis-1 aui-font-size-12">身价: {{info.starPrice}}</div>
+            </div>
+            <div class="aui-col-xs-6 z-data">
+                <div class="z-bg">
+                    <div class="z-data-1 aui-ellipsis-1">{{info.issueBonus}}</div>
+                    <div class="z-data-2 aui-ellipsis-1">已分红(元)</div>
+                </div>
+            </div>
+            <div class="aui-col-xs-6 z-data">
+                <div class="z-bg">
+                    <div class="z-data-1 aui-ellipsis-1">{{info.frozenBonus}}</div>
+                    <div class="z-data-2 aui-ellipsis-1">未分红(元)</div>
+                </div>
+            </div>
+        </div>
+        <div class="z-clearfix"></div>
+        <div class="z-kline-tab z-clearfix aui-hide">
+            <span :class="{'active': activeBtn[0]}"  v-on:click="showKLine(0)">分时线</span>
+            <span :class="{'active': activeBtn[1]}"  v-on:click="showKLine(1)">日K线</span>
+        </div>
+        <div class="z-kline" :class="{'aui-hide': activeBtn[1]}" id="timeKLine"></div>
+        <div class="z-kline" :class="{'aui-hide': activeBtn[0]}" id="dayKLine"></div>
+        <div class="z-table z-clearfix">
+            <div class="aui-col-xs-3 z-table-head">收购量</div>
+            <div class="aui-col-xs-3 z-table-head">收购价</div>
+            <div class="aui-col-xs-3 z-table-head">转出价</div>
+            <div class="aui-col-xs-3 z-table-head">转出量</div>
+            <div class="aui-col-xs-6">
+                <div v-for="(value,index) in buyArr">
+                    <div class="aui-col-xs-6 z-price-1">{{value.amount}}</div>
+                    <div class="aui-col-xs-6 z-price-1">{{value.price}}</div>
+                </div>
+            </div>
+            <div class="aui-col-xs-6">
+                <div v-for="(value,index) in sellArr">
+                    <div class="aui-col-xs-6 z-price-2">{{value.price}}</div>
+                    <div class="aui-col-xs-6 z-price-2">{{value.amount}}</div>
+                </div>
+            </div>
+        </div>
+        <footer class="z-fb-fixed">
+            <div class="aui-col-xs-6" @click="buy">收购</div>
+            <div class="aui-col-xs-6" @click="sell">转出</div>
+        </footer>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/dist/echarts.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var myChart_1 = null,
+            myChart_2 = null;
+        var vm = new Vue({
+            el: '#IPODetail',
+            data: {
+                photo: api.pageParam.src,
+                info: {},
+                buyArr: [],
+                sellArr: [],
+                activeBtn: [1, 0],
+                active: 0,
+                checkIsCollect: 0,
+            },
+            methods: {
+                init: function(){
+                    vm.getData();
+                    vm.getOrderData(api.pageParam.stockCode);
+                },
+                getData: function(){
+                    var self = this;
+                    api.showProgress();
+                    api.ajax({
+                        url: SERVER_PATH + 'Star/getStarMarket',
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                startId: api.pageParam.starId,
+                                stockId: api.pageParam.stockId,
+                                investorId: $api.getStorage('isLogin') === 'true' ? $api.getStorage('userId') : ''
+                            },
+                        }
+                    }, function(ret, err) {
+                        log(ret)
+                        api.hideProgress();
+                        if (ret && ret.code == 0) {
+                            var data = ret.data[0]
+                            if(data.Arbitrage){
+                                data.type = data.Arbitrage > 0 ? 2 : 1;
+                                data.Arbitrage = Math.abs(data.Arbitrage) * 100;
+                            }else{
+                                data.type = 1;
+                                data.Arbitrage = 0;
+                            }
+                            if(!ret.data.checkIsCollect){
+                                vm.checkIsCollect = 0;
+                            }else{
+                                vm.checkIsCollect = ret.data.checkIsCollect;
+                            }
+                            data.starPrice = vm.handleBonus(ret.data.starPrice);
+                            data.issueBonus = vm.handleBonus(ret.data.issueBonus);
+                            data.frozenBonus = vm.handleBonus(ret.data.frozenBonus);
+                            self.info = data;
+                        }else{
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                handleBonus: function(money){
+                    if(!money){
+                        return '0.00';
+                    }else{
+                        var _m = Number(money);
+                        if(_m < 10000){
+                            return _m + '元';
+                        }
+                        if(_m > 10000){
+                            return parseInt(_m/10000) + '万元';
+                        }
+                        if(_m > 100000000){
+                            return (_m/100000000).fixed(2) + '亿元';
+                        }
+                    }
+                },
+                buy: function(){
+                    Tool.isLogin();
+                    if($api.getStorage('isLogin') === 'false') return; //未登录状态不切换
+                    $api.setStorage('buyStockId', api.pageParam.stockId);
+                    api.sendEvent({
+                        name: 'doBuy'
+                    });
+                    setTimeout(function(){
+                        Tool.closeToWin('main');
+                    }, 500);
+                },
+                sell: function(){
+                    Tool.isLogin();
+                    if($api.getStorage('isLogin') === 'false') return; //未登录状态不切换
+                    if(vm.info.state == '0'){
+                        Tool.toastInfo('股票处于IPO状态，只可买入，不可卖出');
+                        return;
+                    }
+                    $api.setStorage('sellStockId', api.pageParam.stockId);
+                    api.sendEvent({
+                        name: 'doSell'
+                    });
+                    setTimeout(function(){
+                        Tool.closeToWin('main');
+                    }, 500);
+                },
+                collectIPO: function(s){
+                    Tool.isLogin();
+                    if($api.getStorage('isLogin') === 'false') return; //未登录状态不切换
+                    if(s == 1){
+                        api.ajax({
+                            url: SERVER_PATH + 'Star/setCollect', //收藏
+                            method: 'post',
+                            data: {
+                                values: {
+                                    AccessToken: $api.getStorage('token'),
+                                    starId: api.pageParam.starId,
+                                    investorId: $api.getStorage('userId'),
+                                },
+                            }
+                        }, function(ret, err) {
+                            if(ret.code == 0){
+                                vm.checkIsCollect = 1;
+                            }
+                            if(ret.msg) Tool.toastInfo(ret.msg);
+                        });
+                    }
+                    if(s == 0){
+                        api.ajax({
+                            url: SERVER_PATH + 'Star/delCollect', //取消收藏
+                            method: 'post',
+                            data: {
+                                values: {
+                                    AccessToken: $api.getStorage('token'),
+                                    starId: api.pageParam.starId,
+                                    investorId: $api.getStorage('userId'),
+                                },
+                            }
+                        }, function(ret, err) {
+                            if(ret.code == 0){
+                                vm.checkIsCollect = 0;
+                            }
+                            if(ret.msg) Tool.toastInfo(ret.msg);
+                        });
+                    }
+                },
+                IPOIntro: function(id, title){
+                    Tool.openHeader({
+                        frame: {
+                            title: title,
+                            url: api.wgtRootDir+'/home/home/IPOIntro.html',
+                            param: {
+                                starId: id
+                            }
+                        }
+                    });
+                },
+                handleKLine: function(index){
+                    var dom = index == 1 ? document.getElementById('dayKLine') : document.getElementById('timeKLine');
+                    if(index == 0){
+                        if(!myChart_1){
+                            var self = this;
+                            api.ajax({
+                                url: SERVER_PATH + 'Star/getMinutePrice',
+                                method: 'post',
+                                data: {
+                                    values: {
+                                        AccessToken: $api.getStorage('token'),
+                                        stockId: api.pageParam.stockId,
+                                    },
+                                }
+                            }, function(ret, err) {
+                                if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                                    try {
+                                        myChart_1 = echarts.init(dom);
+                                        ret.data.forEach(function (item) {
+                                            item.value = item.price;
+                                            item.createTime = item.createTime.substring(5,16);
+                                        });
+                                        var data = handleData(ret.data);
+                                        drawFSLine(myChart_1, data);
+                                    } catch (e) {
+                                        log(e)
+                                    }
+                                }else{
+                                    dom.innerHTML = '<p style="text-align: center;padding-top: 6rem;">没有数据~</p>';
+                                }
+                            });
+                        }
+                    }
+                    if(index == 1){
+                        if(!myChart_2){
+                            var self = this;
+                            api.ajax({
+                                url: SERVER_PATH + 'Star/getStarTrend',
+                                method: 'post',
+                                data: {
+                                    values: {
+                                        AccessToken: $api.getStorage('token'),
+                                        stockId: api.pageParam.stockId,
+                                    },
+                                }
+                            }, function(ret, err) {
+                                log(ret)
+                                if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                                    try {
+                                        myChart_2 = echarts.init(dom);
+                                        var _arr = [];
+                                        ret.data.forEach(function(item){
+                                            _arr.push([item.createTime.substring(0,10), item.openingPrice, item.closingPrice, item.highestPrice, item.lowestPrice, item.turnover]);
+                                        });
+                                        _arr.push(['',0,0,0,0,0]);
+                                        _arr.push(['',0,0,0,0,0]);
+                                        _arr.unshift(['',0,0,0,0,0]);
+                                        drawKLine(myChart_2, _arr);
+                                    } catch (e) {}
+                                }else{
+                                    dom.innerHTML = '<p style="text-align: center;padding-top: 6rem;">没有数据~</p>';
+                                }
+                            });
+                        }
+                    }
+                },
+                showKLine: function(index){
+                    Vue.set(vm.activeBtn,this.active,0);
+                    this.active = index;
+                    Vue.set(vm.activeBtn,this.active,1);
+                },
+                getOrderData: function(code){
+                    var self = this;
+                    api.ajax({
+                        url: SERVER_PATH + 'Deal/getNewestBuyOrder', //最新的买入记录5条
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                stockCode: code
+                            },
+                        }
+                    }, function(ret, err) {
+                        if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                            if(ret.data.length < 5){
+                                var len = ret.data.length;
+                                for(var i=0;i<5-len;i++){ //补足五条数据
+                                    ret.data.push({
+                                        price: '--',
+                                        amount: '--',
+                                    });
+                                }
+                            }
+                            for(var j = 0;j < 5; j++){
+                                self.buyArr.push(ret.data[4-j]);
+                            }
+                        }else{
+                            var arr = [];
+                            for(var i=0;i<5;i++){ //补足五条数据
+                                arr.push({
+                                    price: '--',
+                                    amount: '--',
+                                });
+                            }
+                            self.buyArr = arr;
+                        }
+                    });
+                    api.ajax({
+                        url: SERVER_PATH + 'Deal/getNewestSellOrder', //最新的买入记录5条
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                stockCode: code
+                            },
+                        }
+                    }, function(ret, err) {
+                        if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                            if(ret.data.length < 5){
+                                var len = ret.data.length
+                                for(var i=0;i<5-len;i++){ //补足五条数据
+                                    ret.data.unshift({
+                                        price: '--',
+                                        amount: '--',
+                                    });
+                                }
+                            }
+                            for(var j = 0;j < 5; j++){
+                                self.sellArr.push(ret.data[4-j]);
+                            }
+                        }else{
+                            var arr = [];
+                            for(var i=0;i<5;i++){ //补足五条数据
+                                arr.unshift({
+                                    price: '--',
+                                    amount: '--',
+                                });
+                            }
+                            self.sellArr = arr;
+                        }
+                    });
+                },
+            },
+            watch: {
+                active: function(){
+                    this.$nextTick(function(){
+                        vm.handleKLine(this.active);
+                    });
+                }
+            },
+            created(){
+                this.$nextTick(function(){
+                    vm.handleKLine(this.active);
+                });
+            }
+        });
+        vm.init();
+    };
+</script>
+</html>

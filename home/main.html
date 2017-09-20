@@ -1,0 +1,192 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<body>
+    <footer class="aui-bar aui-bar-tab p-footer" id="footer">
+        <div class="aui-bar-tab-item" :class="{'aui-active': activeBtn[0]}" v-on:click="switchFrame(0)" tapmode>
+            <img src="" :src="imgArr[0]">
+            <div class="aui-bar-tab-label">首页</div>
+        </div>
+        <div class="aui-bar-tab-item" :class="{'aui-active': activeBtn[1]}"  v-on:click="switchFrame(1)" tapmode>
+            <img src="" :src="imgArr[1]">
+            <div class="aui-bar-tab-label">排行</div>
+        </div>
+        <div class="aui-bar-tab-item" :class="{'aui-active': activeBtn[2]}"  v-on:click="switchFrame(2)" tapmode>
+            <img src="" :src="imgArr[2]">
+            <div class="aui-bar-tab-label">转让</div>
+        </div>
+        <div class="aui-bar-tab-item" :class="{'aui-active': activeBtn[3]}" v-on:click="switchFrame(3)" tapmode>
+            <img src="" :src="imgArr[3]">
+            <div class="aui-bar-tab-label">我的</div>
+        </div>
+    </footer>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        $api.setStorage('footerH',$api.offset($api.dom('footer')).h);
+        var vm = new Vue({
+            el: '#footer',
+            data: {
+                imgArr: [
+                    api.wgtRootDir + '/image/home_active.png',
+                    api.wgtRootDir + '/image/market.png',
+                    api.wgtRootDir + '/image/deal.png',
+                    api.wgtRootDir + '/image/userCenter.png',
+                ],
+                activeBtn: [1, 0, 0, 0],
+                active: 0,
+            },
+            methods: {
+                init: function(){
+                    vm.openFrameGroup();
+                    vm.exitApp();
+                    vm.listenEvent();
+                },
+                openFrameGroup: function(){
+                    var self = this;
+                    api.openFrameGroup({
+                		name : 'app_index',
+                		scrollEnabled : false,
+                		rect : {
+                			x : 0,
+                			y : 0,
+                			w : 'auto',
+                			h : api.winHeight - $api.offset($api.byId('footer')).h
+                		},
+                		preload : 0,
+                		frames : [{
+                			name : 'home',
+                			url : './home/home.html',
+                            vScrollBarEnabled:false,
+                			bounces : false
+                		}, {
+                			name : 'market',
+                			url : './market/market.html',
+                            vScrollBarEnabled:false,
+                			bounces : false
+                		}, {
+                			name : 'deal',
+                			url : './deal/deal.html',
+                            vScrollBarEnabled:false,
+                			bounces : false
+                		}, {
+                			name : 'my',
+                			url : './userCenter/user.html',
+                            vScrollBarEnabled:false,
+                			bounces : false
+                		}]
+                	}, function(ret, err) {
+                        Vue.set(vm.imgArr,self.active,self.imgArr[self.active].replace(/_active/, ''));
+                        Vue.set(vm.activeBtn,self.active,0);
+                        self.active = ret.index;
+                        Vue.set(vm.imgArr,self.active,self.imgArr[self.active].replace(/\.png/, '_active.png'));
+                        Vue.set(vm.activeBtn,self.active,1);
+                	});
+                },
+                switchFrame: function(index){
+                    switch (index) {
+                        case 0:
+                            Tool.showOrHideFrame('hotIPO', true);
+                            Tool.showOrHideFG('dealFrameGroup', false);
+                            Tool.showOrHideFG('marketFrameGroup', false);
+                            break;
+                        case 3:
+                            Tool.isLogin();
+                            if($api.getStorage('isLogin') === 'false') return; //未登录状态不切换
+                            Tool.showOrHideFrame('hotIPO', false);
+                            Tool.showOrHideFG('dealFrameGroup', false);
+                            Tool.showOrHideFG('marketFrameGroup', false);
+                            break;
+                        case 1:
+                            Tool.showOrHideFrame('hotIPO', false);
+                            Tool.showOrHideFG('dealFrameGroup', false);
+                            Tool.showOrHideFG('marketFrameGroup', true);
+                            break;
+                        case 2:
+                            Tool.isLogin();
+                            if($api.getStorage('isLogin') === 'false') return; //未登录状态不切换
+                            Tool.showOrHideFrame('hotIPO', false);
+                            Tool.showOrHideFG('marketFrameGroup', false);
+                            Tool.showOrHideFG('dealFrameGroup', true);
+                            break;
+                    }
+                    if(index == 3){
+                        api.sendEvent({
+                            name: 'freshUserPage'
+                        });
+                    }
+                    if(index == 2){
+                        api.sendEvent({
+                            name: 'freshDealPage'
+                        });
+                    }
+                    api.setFrameGroupIndex({
+                		name : 'app_index',
+                		index : index,
+                		scroll : true
+                	});
+                },
+                exitApp: function(){
+                    $api.setStorage('exitApp', "");
+                    api.addEventListener({
+                		name: 'keyback'
+                	}, function(ret, err) {
+                        // var exitApp = $api.getStorage('exitApp');
+                		// if(exitApp === "confirm"){
+                        //     api.closeWidget({
+                        //         id: api.appId,
+                        //         silent: true
+                        //     });
+                        // }
+                        // if(exitApp !== "confirm"){
+                        //     Tool.toastInfo("再按一次退出程序");
+                        //     $api.setStorage('exitApp', "confirm");
+                        //     setTimeout(function(){
+                        //         $api.setStorage('exitApp', "");
+                        //     }, 1500);
+                        // }
+                	});
+                },
+                listenEvent: function(){
+                    api.addEventListener({
+                        name: 'doBuy'
+                    }, function(ret, err){
+                        if( ret ){
+                            setTimeout(function(){
+                                api.sendEvent({
+                                    name: 'doBuyNext'
+                                });
+                            }, 1000);
+                            vm.switchFrame(2);
+                        }
+                    });
+                    api.addEventListener({
+                        name: 'doSell'
+                    }, function(ret, err){
+                        if( ret ){
+                            setTimeout(function(){
+                                api.sendEvent({
+                                    name: 'doSellNext'
+                                });
+                            }, 1000);
+                            vm.switchFrame(2);
+                        }
+                    });
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

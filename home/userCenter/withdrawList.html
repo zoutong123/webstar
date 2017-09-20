@@ -1,0 +1,149 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15" id="app">
+        <ul class="aui-list aui-media-list z-no-bt">
+            <li class="aui-list-item aui-list-item-middle" v-for="(value,index) in dataArr" @click="openPage(index)">
+                <div class="aui-media-list-item-inner">
+                    <div class="aui-list-item-inner aui-list-item-arrow">
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-title aui-font-size-14">￥{{value.amount}}</div>
+                            <div class="aui-list-item-right">{{value.staName}}</div>
+                        </div>
+                        <div class="aui-list-item-text">
+                            {{value.createTime}}
+                        </div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        $api.setStorage('activeStatus', Enum.WithdrawStatus[0].key);
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                dataArr: [],
+                getDataApi : SERVER_PATH + 'Wallet/getWithdrawLog',
+                page : 1,
+                length: 10,
+                maxPage : 1,
+                status: Enum.WithdrawStatus[0].key,
+                listMsg: '',
+                nullData: false
+            },
+            methods: {
+                init: function(){
+                    vm.getData();
+                    vm.loadMore();
+                    vm.refresh();
+                    vm.listenEvent();
+                },
+                listenEvent: function(){
+                    var self = this;
+                    api.addEventListener({
+                        name: 'withdrawStaTrigger'
+                    }, function(ret, err){
+                        self.status = ret.value.status;
+                        self.page = 1;
+                        self.dataArr = [];
+                        vm.getData();
+                    });
+                },
+                getData: function(){
+                    var self = this;
+                    api.showProgress();
+                    api.ajax({
+                        url: self.getDataApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                start: self.page,
+                                length: self.length,
+                                status: self.status,
+                                id: $api.getStorage('userId'),
+                                walletId: $api.getStorage('walletId'),
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        log(ret)
+                        api.hideProgress();
+                        if (ret) {
+                            if(ret.code == 0 && ret.data && ret.data.length){
+                                self.maxPage = parseInt(ret.recordsTotal / self.length) + 1;
+                                try {
+                                    ret.data.forEach(function(item){
+                                        item.staName = Enum.WithdrawStatus.filter(function(i){
+                                            return i.key == item.status;
+                                        })[0].value;
+                                        self.dataArr.push(item);
+                                    });
+                                } catch (e) {}
+
+                            }else{
+                                vm.listMsg = HasNotData;
+                                vm.nullData = true;
+                            }
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                openPage: function(index){
+                    Tool.openHeader({
+                        frame: {
+                            title: '提现明细',
+                            url: api.wgtRootDir+'/home/userCenter/sheet.html',
+                            param: {
+                                data: vm.dataArr[index],
+                                RecordType: Enum.RecordType.Withdraw
+                            }
+                        }
+                    });
+                },
+                loadMore: function(){
+                    var self = this;
+                    Tool.loadMore(function(){
+                        if (self.page && self.maxPage && vm.listMsg != HasNotData) {
+                            if (parseInt(self.page) < parseInt(self.maxPage)) {
+                                self.page++;
+                                vm.getData();
+                            } else {
+                                vm.listMsg = LoadAll;
+                            }
+                        }
+                    });
+                },
+                refresh: function(){
+                    var self = this;
+                    Tool.refreshPage(function(){
+                        vm.listMsg = '';
+                        self.page = 1;
+                        self.maxPage = 1;
+                        self.dataArr = [];
+                        vm.getData();
+                    });
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

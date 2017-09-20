@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width" />
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<style>
+    html{
+        font-size: 20px;
+    }
+    section{
+        padding: 0.5rem;
+        margin-bottom: 0.5rem;
+        background-color: #fff;
+    }
+    h3{
+        line-height: 32px;
+    }
+    h3 span{
+        font-size: 12px;
+        line-height: 32px;
+        display: inline-block;
+        width: 100%;
+        padding-right: 0.5rem;
+    }
+    h3 p{
+        font-size: 14px;
+    }
+    h3 .version{
+        margin-left: 0.5rem;
+    }
+    .v_title{
+        text-align: center;
+        font-size: 20px;
+        padding: 10px 15
+    }
+</style>
+<body>
+    <div v-cloak class="aui-content" id="app">
+        <section v-for="(value, index) in dataArr" class="aui-margin-t-10">
+            <h2 class="v_title aui-text-left aui-border-b">版本{{value.version}}</h2>
+            <h3><span class="aui-text-right">{{value.date}}</span></h3>
+            <p v-for="(value, index) in value.content">{{value}}</p>
+        </section>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript" src="../../res/version.js"></script>
+<script type="text/javascript">
+    apiready = function() {
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                dataArr: Version.data,
+                curVersion: Version.data[0].version
+            }
+        });
+    };
+</script>
+
+</html>

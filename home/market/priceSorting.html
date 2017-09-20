@@ -1,0 +1,144 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15 z-marketList" id="collectionList">
+        <ul class="aui-list aui-list-noborder aui-media-list">
+            <li v-for="(value,index) in dataArr" class="aui-list-item aui-list-item-middle aui-border-b" @click="IPOView(value.stockId, value.starId, value.nickname, value.coverPhotoURL, value.stockCode)">
+                <div class="aui-media-list-item-inner">
+                    <div class="aui-list-item-media">
+                        <img src="" :src="value.coverPhotoURL" class="aui-list-img-sm">
+                        <img v-if="value.state == 0" class="z-rengouImg" src="../../image/rengou.png" alt="">
+                    </div>
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-title aui-font-size-16">{{value.nickname}}</div>
+                            <div v-if="value.type == 1" class="aui-list-item-right z-price-1">{{value.Arbitrage}}%</div>
+                            <div v-if="value.type == 2" class="aui-list-item-right z-price-2">{{value.Arbitrage}}%</div>
+                        </div>
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-right z-ml-0" style="margin-left: 0;">平台: {{value.showPlatform}}</div>
+                            <div class="aui-list-item-right">{{value.price || '-'}}元/份</div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var vm = new Vue({
+        el: '#collectionList',
+        data: {
+            dataArr: [],
+            getDataApi : SERVER_PATH + 'Stock/getStockTrend',
+            page : 1,
+            length : 10,
+            maxPage : 1,
+            listMsg: '',
+            nullData: false
+        },
+        methods: {
+            init: function(){
+                vm.getData();
+                vm.loadMore();
+                vm.refresh();
+            },
+            getData: function(){
+                var self = this;
+                api.showProgress();
+                api.ajax({
+                    url: self.getDataApi,
+                    method: 'post',
+                    data: {
+                        values: {
+                            start: self.page,
+                            length: self.length,
+                            type: 2, //排序：1，推荐；2，股价
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    api.hideProgress();
+                    log(ret)
+                    if (ret) {
+                        if(ret.code == 0 && ret.data && ret.data.length){
+                            self.maxPage = parseInt(ret.recordsTotal / self.length) + 1;
+                            ret.data.forEach(function(item){
+                                if(!item.price && item.state != Enum.IPOStatus[1].key) item.price = Enum.IPOPrice;
+                                item.price = Tool.formatMoney(item.price);
+                                if(item.Arbitrage){
+                                    item.type = item.Arbitrage > 0 ? 2 : 1;
+                                    item.Arbitrage = Math.abs(item.Arbitrage) * 100;
+                                }else{
+                                    item.type = 1;
+                                    item.Arbitrage = 0;
+                                }
+                                self.dataArr.push(item);
+                            });
+                        }else{
+                            vm.listMsg = HasNotData;
+                            vm.nullData = true;
+                        }
+                    } else {
+                        Tool.toastInfo(errMsg);
+                    }
+                });
+            },
+            IPOView: function(stockId, starId, title, src, stockCode){
+                Tool.openHeader({
+                    frame: {
+                        title: title,
+                        url: api.wgtRootDir+'/home/home/IPODetail.html',
+                        param: {
+                            stockId: stockId,
+                            starId: starId,
+                            title: title,
+                            src: src,
+                            stockCode: stockCode
+                        }
+                    }
+                });
+            },
+            loadMore: function(){
+                var self = this;
+                Tool.loadMore(function(){
+                    if (self.page && self.maxPage && vm.listMsg != HasNotData) {
+                        if (parseInt(self.page) < parseInt(self.maxPage)) {
+                            self.page++;
+                            vm.getData();
+                        }else {
+                            vm.listMsg = LoadAll;
+                        }
+                    }
+                });
+            },
+            refresh: function(){
+                var self = this;
+                Tool.refreshPage(function(){
+                    vm.listMsg = '';
+                    self.page = 1;
+                    self.maxPage = 1;
+                    self.dataArr = [];
+                    vm.getData();
+                });
+            }
+        }
+    });
+    vm.init();
+};
+</script>
+</html>

@@ -1,0 +1,108 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <ul v-cloak class="z-history" id="history">
+        <li v-for="(value, index) in dataArr" @click="orderDetail(value.orderId, value.stockCode)">
+            <p class="z-title aui-border-b">
+                <span class="z-icon">{{value.typeName}}</span>
+                <span class="aui-padded-r-10">{{value.nickname}}</span>
+                <span>{{value.stockCode}}</span>
+            </p>
+            <div class="z-body aui-border-b z-clearfix">
+                <div class="aui-col-xs-6 z-con"><p>{{value.amount}}</p><p>委托数</p></div>
+                <div class="aui-col-xs-6 z-con"><p>{{value.amount - value.residueAmount}}</p><p>成交量</p></div>
+            </div>
+            <div class="z-footer">
+                <p><span>价格</span><span class="aui-pull-right">{{value.price}}</span></p>
+                <p><span>日期</span><span class="aui-pull-right">{{value.createTime}}</span></p>
+            </div>
+        </li>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </ul>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var vm = new Vue({
+        el: '#history',
+        data: {
+            dataArr: [],
+            listMsg: '',
+            nullData: false
+        },
+        methods: {
+            init: function(){
+                vm.getData();
+                vm.refresh();
+            },
+            getData: function(){
+                var self = this;
+                api.showProgress();
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getDealHistory',
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            investorId: $api.getStorage('userId'),
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    api.hideProgress();
+                    if (ret) {
+                        if(ret.code == 0 && ret.data && ret.data.length){
+                            ret.data.forEach(function(item){
+                                if(item.type == Enum.DealType.Buy) item.typeName = '收';
+                                if(item.type == Enum.DealType.Sell) item.typeName = '转';
+                                item.residueAmount = item.residueAmount == null ? 0 : item.residueAmount;
+                                item.price = Tool.formatMoney(item.price);
+                            });
+                            self.dataArr = Tool.arrSort(ret.data, 'createTime');
+                            vm.listMsg = LoadAll;
+                        }else{
+                            vm.listMsg = HasNotData;
+                            vm.nullData = true;
+                        }
+                    } else {
+                        Tool.toastInfo(errMsg);
+                    }
+                });
+            },
+            refresh: function(){
+                var self = this;
+                Tool.refreshPage(function(){
+                    vm.listMsg = '';
+                    self.dataArr = [];
+                    vm.getData();
+                });
+            },
+            orderDetail: function(orderId, stockCode){
+                Tool.openHeader({
+                    frame: {
+                        title: '交易明细',
+                        url: api.wgtRootDir + '/home/deal/dealDetail.html',
+                        param: {
+                            orderId: orderId,
+                            stockCode: stockCode
+                        }
+                    }
+                });
+            }
+        },
+    });
+    vm.init();
+};
+</script>
+</html>

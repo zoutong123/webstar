@@ -1,0 +1,104 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15 fenhongList" id="app">
+        <ul class="aui-list aui-media-list aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item aui-list-item-middle" v-for="(value,index) in dataArr">
+                <div class="z-listInfo1 aui-border-b z-clearfix">
+                    <span>{{value.nickname}}</span>
+                    <span>({{value.stockCode}})</span>
+                </div>
+                <div class="z-listInfo2 z-clearfix">
+                    <div class="aui-col-xs-6">
+                        <div class="z-text3">{{value.price || '-'}}</div>
+                        <div class="z-text4">价格</div>
+                    </div>
+                    <div class="aui-col-xs-6">
+                        <div class="z-text3">{{value.amount}}</div>
+                        <div class="z-text4">数量</div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                getDataApi: SERVER_PATH + 'Deal/getStockByInvestorId',
+                value: 0,
+                dataArr: [],
+                listMsg: '',
+                nullData: false
+            },
+            methods: {
+                init: function(){
+                    vm.getData();
+                    vm.refresh();
+                },
+                getData: function(){
+                    var self = this;
+                    api.showProgress();
+                    api.ajax({
+                        url: self.getDataApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                investorId: $api.getStorage('userId'),
+                                page: self.page,
+                                length: self.length
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if(ret){
+                            if (ret.code == 0 && ret.data && ret.data.length) {
+                                self.maxPage = parseInt(ret.recordsTotal / self.length) + 1;
+                                try {
+                                    ret.data.forEach(function(item){
+                                        if(item.price){
+                                            item.price = Tool.formatMoney(item.price);
+                                        }
+                                        self.dataArr.push(item);
+                                    });
+                                } catch (e) {}
+                            } else {
+                                vm.listMsg = HasNotData;
+                                vm.nullData = true;
+                            }
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                refresh: function(){
+                    var self = this;
+                    Tool.refreshPage(function(){
+                        vm.listMsg = '';
+                        self.dataArr = [];
+                        vm.getData();
+                    });
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

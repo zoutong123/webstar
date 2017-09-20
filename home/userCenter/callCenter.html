@@ -1,0 +1,152 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content z-callCenter" id="app">
+        <div class="z-header"><span class="z-line"></span>反馈问题的类型<span class="z-line"></span></div>
+        <ul class="z-list z-clearfix aui-margin-t-10">
+            <li class="aui-border-r" :class="{'z-active': activeArr[0]}" @click="toggleType(0)">问题升级</li>
+            <li class="aui-border-r" :class="{'z-active': activeArr[1]}" @click="toggleType(1)">提现问题</li>
+            <li class="aui-border-r" :class="{'z-active': activeArr[2]}" @click="toggleType(2)">BUG提交</li>
+            <li class="" :class="{'z-active': activeArr[3]}" @click="toggleType(3)">建议提交</li>
+        </ul>
+        <div class="z-text z-clearfix">
+            <textarea rows="20" cols="80" placeholder="请告诉我们您遇到的问题或想反馈的意见" v-model="text"></textarea>
+            <img class="z-clipImg" v-for="(value, index) in imgArr" :src="value" @click="view(index)">
+            <span v-if="imgArrLen < maxImgNum" class="z-addBtn" @click="uploadPhoto">
+                <img src="../../image/plus_1.png" alt="">
+                <p>{{imgArrLen}}/{{maxImgNum}}</p>
+            </span>
+        </div>
+        <div class="aui-padded-r-10 aui-padded-l-10 mt-40" @click="confirm">
+            <div class="aui-btn aui-btn-danger aui-btn-block z-bg">确定</div>
+        </div>
+        <div class="aui-padded-r-10 aui-padded-l-10 aui-margin-t-15">
+            <div class="aui-btn aui-btn-block backInfo">回馈信息</div>
+        </div>
+        <div class="z-view" :class="{'aui-hide': !viewImg}" @click="closeView">
+            <div class="z-box">
+                <img id="viewImgId" :class="css" :src="viewImg">
+            </div>
+            <p class="z-delete" @click="deleteImg"><span class="aui-iconfont aui-icon-trash"></span></p>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                text: '',
+                imgArr: [],
+                imgArrLen: 1,
+                maxImgNum: 4,
+                activeArr: [1, 0, 0, 0],
+                active: 0,
+                viewImg: '',
+                viewIndex: null,
+                css: 'z-w'
+            },
+            methods: {
+                init: function(){
+
+                },
+                toggleType: function(index){
+                    Vue.set(vm.activeArr,vm.active,0);
+                    vm.active = index;
+                    Vue.set(vm.activeArr,vm.active,1);
+                },
+                view: function(index){
+                    vm.viewIndex = index;
+                    vm.viewImg = vm.imgArr[vm.viewIndex];
+                    var img = new Image();
+                    img.onload = function(){
+                        var frameHeight = api.frameHeight * 0.9;
+                        var frameWidth = api.frameWidth;
+                        var imgH = img.height;
+                        var imgW = img.width;
+                        if(imgW/imgH<frameWidth/frameHeight){
+                            vm.css = 'z-h';
+                        }else{
+                            vm.css = 'z-w';
+                        }
+                    };
+                    img.src = vm.viewImg;
+                },
+                closeView: function(){
+                    vm.viewImg = '';
+                },
+                deleteImg: function(){
+                    vm.imgArr.splice(vm.viewIndex, 1);
+                    vm.imgArrLen = vm.imgArr.length;
+                },
+                confirm: function(){
+                    return;
+                    api.showProgress();
+                    api.ajax({
+                        url: SERVER_PATH + '', //获取股票索引列表
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                            },
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if (ret && ret.code == 0) {
+
+                        }
+                    });
+                },
+                feedback: function(){
+                    Tool.toastInfo('开发中...');
+                },
+                uploadPhoto: function(){
+                    api.actionSheet({
+                        title: '上传方式',
+                        cancelTitle: '取消',
+                        buttons: ['拍照上传', '从相册选择']
+                    }, function(ret, err) {
+                        if(ret.buttonIndex == 3) return;
+                        var index = ret.buttonIndex, type;
+                        switch(index){
+                            case 1: type = 'camera';break;
+                            case 2: type = 'album';break;
+                        }
+                        Tool.getPicture(type, 'getPictureAtUserInfo');//选择图片
+                    });
+                    api.addEventListener({
+			    		name : 'getPictureAtUserInfo'
+			    	}, function(ret, err) {
+						var json = ret.value;
+						if(json.ret && json.ret.data){
+	                        Tool.uploadImage(UploadImageApi, json.ret.data, 'uploadImageAtUser'); //上传图片
+							api.addEventListener({
+					    		name : 'uploadImageAtUser'
+					    	}, function(ret, err) {
+								var json2 = ret.value;
+                                if(json2.ret.code == 0){
+                                    vm.imgArr.push(json2.ret.CDNPath);
+                                    vm.imgArrLen = vm.imgArr.length;
+								}
+					    	});
+	                    }
+			    	});
+                },
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

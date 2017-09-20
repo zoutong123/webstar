@@ -1,0 +1,248 @@
+<!DOCTYPE HTML>
+<html class="sign">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, initial-scale=1.0, width=device-width" />
+    <meta name="format-detection" content="telephone=no, email=no, date=no, address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<style media="screen">
+    html,body{
+        height: 100vh;
+        background-image: url('../image/bg.png');
+        background-size: cover;
+    }
+</style>
+<body style="background-color: #fff;">
+    <header class="aui-bar aui-bar-nav" style="background-color: rgba(255,255,255,0);background-image: none;">
+        <a class="aui-pull-left aui-btn" onclick="closeWin();">
+            <span class="aui-iconfont aui-icon-close" style="color: #fff;"></span>
+        </a>
+    </header>
+    <div v-cloak id="signUp" class="signUp">
+        <div class="z-logo">
+            <img src="../image/logo_2.png">
+        </div>
+        <div class="aui-content aui-margin-b-15">
+            <ul class="aui-list aui-form-list z-no-bt">
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/phone_2.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <!-- <span class="z-prefix-phone aui-border-r">+86</span> -->
+                            <input class="z-phone" type="tel" v-model="phone" placeholder="输入手机号" v-focus="phoneFocus" @blur="blur(1)">
+                        </div>
+                    </div>
+                </li>
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/smsCode_2.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input z-pos-rel">
+                            <input type="tel" v-model="verifyCode" placeholder="输入验证码" v-focus="captchaFocus" @blur="blur(2)">
+                            <div class="z-smsBtn aui-border" @click="getCaptcha">{{captchaBtnText}}</div>
+                        </div>
+                    </div>
+                </li>
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/password_2.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <input type="password" v-model="password" placeholder="设置密码(6~16位)">
+                        </div>
+                    </div>
+                </li>
+            </ul>
+             <p class="aui-margin-t-15">
+                 <div class="aui-btn aui-btn-danger aui-btn-block z-btn" :class="{bgCCC:signUpIng}" @click="signUp">确认注册</div>
+             </p>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        $api.fixStatusBar($api.dom('header'));
+        var interval,time = 60;
+        console.log(api.winName)
+        var vm = new Vue({
+            el: "#signUp",
+            data: {
+                signUpApi : SERVER_PATH + 'User/signUp',
+                getSMSApi : SERVER_PATH + 'Tools/sendVerifyCode',
+                phone : "",
+                password : "",
+                verifyCode : "",
+                captchaBtnText: "获取",
+                getCaptchaIng : false,
+                signUpIng: true,
+                phoneFocus: false,
+                captchaFocus: false
+            },
+            directives:{
+                focus: {
+                    inserted: function (el, binding) {
+                        if(binding.value) el.focus();
+                    },
+                    update: function (el, binding) {
+                        if(binding.value) el.focus();
+                    }
+                }
+        　　},
+            methods: {
+                init: function(){
+                    setTimeout(function(){
+                        vm.phoneFocus = true;
+                    }, 500);
+                },
+                blur: function(param){
+                    if(param == 1) this.phoneFocus = false;
+                    if(param == 2) this.captchaFocus = false;
+                },
+                signUp: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        Tool.toastInfo('手机号格式不正确');
+                        return;
+                    }
+                    if(!isCaptcha(self.verifyCode)){
+                        Tool.toastInfo('验证码格式有误');
+                        return;
+                    }
+                    if(!isPwd(self.password)){
+                        Tool.toastInfo('密码格式6~16位数字字母组合');
+                        return;
+                    }
+                    if(self.signUpIng){
+                        return;
+                    }
+                    self.signUpIng = true;
+                    api.showProgress();
+                    api.ajax({
+                        url: self.signUpApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                phone: self.phone,
+                                passWord: self.password,
+                                verifyCode: self.verifyCode,
+                                deviceToken: api.deviceId,
+                                OS: api.systemType+api.systemVersion,
+                            }
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if (ret) {
+                            if(ret.code == 0){
+                                self.signUpIng = false;
+                                Tool.toastInfo(ret.msg || okMsg);
+                                setTimeout(function(){
+                                    api.closeToWin({
+                                        name: 'signIn'
+                                    });
+                                }, 1500);
+                            }else{
+                                self.signUpIng = false;
+                                Tool.toastInfo(ret.msg || errMsg);
+                            }
+                        } else {
+                            self.signUpIng = false;
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                checkForm: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        return false;
+                    }
+                    if(!isPwd(self.password)){
+                        return false;
+                    }
+                    if(!isCaptcha(self.verifyCode)){
+                        return false;
+                    }
+                    return true;
+                },
+                getCaptcha: function(){
+                    var self = this;
+                    if(self.getCaptchaIng){
+                        return;
+                    }
+                    self.getCaptchaIng = true;
+                    if(!isPhone(self.phone)){
+                        self.getCaptchaIng = false;
+                        Tool.toastInfo('手机号格式不正确');
+                        return;
+                    }else{
+                        api.showProgress();
+                        api.ajax({
+                            url: self.getSMSApi,
+                            method: 'post',
+                            data: {
+                                values: {
+                                    phone : self.phone,
+                                    type: 1
+                                }
+                            }
+                        }, function(ret, err) {
+                            api.hideProgress();
+                            if (ret) {
+                                if(ret.code == 0){
+                                    Tool.toastInfo(ret.msg || okMsg);
+                                    interval = setInterval(refreshGetCaptcha, 1000); //创建计时器
+                                    self.captchaFocus = true;
+                                }else{
+                                    Tool.toastInfo(ret.msg || errMsg);
+                                    self.getCaptchaIng = false;
+                                }
+                            } else {
+                                Tool.toastInfo(err.msg || errMsg);
+                                self.getCaptchaIng = false;
+                            }
+                        });
+                    }
+                    function refreshGetCaptcha() {
+                        self.captchaBtnText = time + 's';
+                        time--;
+                        if(time < 0) {
+                            clearInterval(interval); //清除计时器
+                            self.getCaptchaIng = false;
+                            self.captchaBtnText = "获取";
+                            time = 60;
+                        }
+                    }
+                }
+            },
+            watch: {
+                phone: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.signUpIng = false;
+                    if(!bool) this.signUpIng = true;
+                },
+                password: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.signUpIng = false;
+                    if(!bool) this.signUpIng = true;
+                },
+                verifyCode: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.signUpIng = false;
+                    if(!bool) this.signUpIng = true;
+                }
+            }
+        });
+        vm.init();
+    }
+</script>
+</html>

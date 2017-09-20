@@ -1,0 +1,107 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<style>
+    .mt-40{
+        margin-top: 2rem;
+    }
+</style>
+<body>
+    <div v-cloak class="aui-content recharge" id="app">
+        <ul class="aui-list aui-form-list aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item z-no-bt">
+                <div class="aui-list-item-inner">
+                    <div class="aui-list-item-label aui-padded-r-10" style="width: 40%;">
+                        充值金额(元)
+                    </div>
+                    <div class="aui-list-item-input">
+                        <input class="aui-text-right" type="tel" placeholder="输入充值金额" v-model="money" v-focus>
+                    </div>
+                </div>
+            </li>
+        </ul>
+        <div class="aui-padded-r-10 aui-padded-l-10 mt-40" @click="recharge"><div class="aui-btn aui-btn-danger aui-btn-block z-bg">确定</div></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                rechargeApi: SERVER_PATH + 'Wallet/applyRecharge',
+                money: null
+            },
+            directives:{
+                focus: {
+                    inserted: function (el) {
+                        el.focus();
+                    }
+                }
+        　　},
+            methods: {
+                init: function(){
+                    vm.listenEvent();
+                },
+                listenEvent: function(){
+                    var self = this;
+                    api.addEventListener({
+                        name: 'resetInputAtRechargeAndWithdraw'
+                    }, function(ret, err){
+                        self.money = null;
+                    });
+                },
+                recharge: function(){
+                    var self = this;
+                    if(!isMoney(self.money)){
+                        Tool.toastInfo('金额输入不正确');
+                        return;
+                    }
+                    api.ajax({
+                        url: self.rechargeApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                id: $api.getStorage('walletId'),
+                                money: self.money
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        if (ret) {
+                            if(ret.code == 0){
+                                Tool.openHeader({
+                                    frame: {
+                                        title: '充值明细',
+                                        url: api.wgtRootDir + '/home/userCenter/sheet.html',
+                                        param: {
+                                            data: ret.data[0] || {},
+                                            RecordType: Enum.RecordType.Recharge
+                                        }
+                                    }
+                                });
+                            }else{
+                                Tool.toastInfo(ret.msg || errMsg);
+                            }
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

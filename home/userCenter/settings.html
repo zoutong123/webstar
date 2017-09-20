@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width" />
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15 moneyRecord userInfo" id="app">
+        <ul class="aui-list aui-list-in aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item" @click="openPage(0)">
+                <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                    {{pageArr[0].title}}
+                </div>
+            </li>
+            <li class="aui-list-item" @click="openPage(1)">
+                <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                    {{pageArr[1].title}}
+                    <span class="aui-pull-right">{{curVersion}}</span>
+                </div>
+            </li>
+        </ul>
+        <div class="aui-padded-r-10 aui-padded-l-10 mt-40" @click="quit"><div class="aui-btn aui-btn-danger aui-btn-block z-bg">退出</div></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript" src="../../res/version.js"></script>
+<script type="text/javascript">
+    apiready = function() {
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                pageArr: [{
+                    url: 'appIntro.html',
+                    title: '功能介绍'
+                },{
+                    url: 'versionIntro.html',
+                    title: '版本更新说明'
+                }],
+                curVersion: Version.data[0].version
+            },
+            methods: {
+                init: function() {
+
+                },
+                openPage: function(index) {
+                    Tool.openHeader({
+                        frame: {
+                            title: vm.pageArr[index].title,
+                            url: api.wgtRootDir + '/home/userCenter/' + vm.pageArr[index].url,
+                        }
+                    });
+                },
+                quit: function(){
+                    Tool.confirm('确认退出?', 'quitApp');
+                    api.addEventListener({
+                        name: 'quitApp'
+                    }, function(ret, err){
+                        api.showProgress({
+                            style: 'default',
+                            animationType: 'fade',
+                            title: '退出中...'
+                        });
+
+                        $api.setStorage('password', '');
+                        setTimeout(function(){
+                            api.closeWidget({
+                                id: api.appId,
+                                silent: true,
+                                animation: {
+                                    type:"flip",
+                                    subType: 'from_bottom',
+                                    duration:300
+                                }
+                            });
+                        }, 1500);
+                    });
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="./css/aui/aui.css" />
+</head>
+<body>
+
+</body>
+<script type="text/javascript" src="./script/dist/api.js"></script>
+<script type="text/javascript" src="./script/config.js"></script>
+<script type="text/javascript" src="./script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        console.log('登录状态:'+$api.getStorage('isLogin'));
+        console.log('H2认证:'+$api.getStorage('H2OK'));
+        console.log('userId:'+$api.getStorage('userId'));
+        console.log('walletId:'+$api.getStorage('walletId'));
+        var Index = function(){
+            this.loginApi = SERVER_PATH + 'User/logIn';
+            this.init();
+        };
+        Index.prototype = {
+            init: function(){
+                $api.setStorage('isLogin', 'false');
+                var phone = $api.getStorage('phone');
+                var password = $api.getStorage('password');
+                if(phone && password){
+                    this.checkLoginStatus(phone, password);
+                }else{
+                    this.goHome();
+                }
+            },
+            checkLoginStatus: function(phone, pwd){
+                console.log('手机号码:'+phone);
+                console.log('密码:'+pwd);
+                var self = this;
+                api.ajax({
+                    url: self.loginApi,
+                    method: 'post',
+                    data: {
+                        values: {
+                            phone: phone,
+                            passWord: pwd,
+                            accessToken: $api.getStorage('token'),
+                            deviceToken: api.deviceId,
+                            OS: api.systemType+api.systemVersion,
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    log(ret)
+                    if (ret && ret.code == '0') {
+                        $api.setStorage('isLogin', 'true');
+                        $api.setStorage('token',ret.data.accessToken);
+                        $api.setStorage('userId',ret.data.id);
+                        $api.setStorage('walletId',ret.data.walletId);
+                        $api.setStorage('H2OK',ret.data.prove);
+                        $api.setStorage('investorStatus',ret.data.status);
+                        $api.setStorage('openingTime',ret.data.openingTime);
+                        $api.setStorage('closingTime',ret.data.closingTime);
+                        self.goHome();
+                    } else {
+                        self.goHome();
+                    }
+                });
+            },
+            goHome: function(){
+                Tool.openWin({
+                    name: 'main',
+                    url: '/home/main.html',
+                    delay: 800
+                });
+            }
+        };
+        new Index();
+    };
+</script>
+</html>

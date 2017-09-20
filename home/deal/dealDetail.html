@@ -1,0 +1,77 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <ul v-cloak class="z-dealDetail aui-margin-b-15" id="orderList">
+        <li v-for="(value, index) in dataArr">
+            <p class="z-title aui-border-b">
+                <span class="aui-padded-r-10">成交编号:{{value.orderNumber}}</span>
+                <span class="aui-font-size-12 aui-pull-right">{{value.createTime}}</span>
+            </p>
+            <div class="z-body z-clearfix">
+                <div class="aui-col-xs-6 z-con"><p>￥{{value.tradePrice}}</p><p>成交价格</p></div>
+                <div class="aui-col-xs-6 z-con"><p>{{value.amount}}</p><p>成交数量</p></div>
+            </div>
+        </li>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </ul>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var vm = new Vue({
+        el: '#orderList',
+        data: {
+            dataArr: [],
+            listMsg: '',
+            nullData: false
+        },
+        methods: {
+            init: function(){
+                vm.getData();
+            },
+            getData: function(){
+                var self = this;
+                api.showProgress();
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getDealInfo',
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            orderId: api.pageParam.orderId,
+                            stockCode: api.pageParam.stockCode
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    api.hideProgress();
+                    if (ret) {
+                        if(ret.code == 0 && ret.data && ret.data.length){
+                            self.dataArr = ret.data;
+                            vm.listMsg = LoadAll;
+                        }else{
+                            vm.listMsg = HasNotData;
+                            vm.nullData = true;
+                        }
+                    } else {
+                        Tool.toastInfo(errMsg);
+                    }
+                });
+            },
+        },
+    });
+    vm.init();
+};
+</script>
+</html>

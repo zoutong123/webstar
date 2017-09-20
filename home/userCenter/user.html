@@ -1,0 +1,284 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15 moneyRecord userCenter" id="userCenter">
+        <div class="z-bgPhoto" style="">
+            <img class="z-photo" src="" :src="photo" alt="" @click="uploadPhoto">
+            <p class="aui-font-size-14 aui-text-white">资产总额</p>
+            <p class="aui-font-size-20 aui-text-white aui-padded-b-15">{{formatTotal}}</p>
+            <div class="z-clearfix aui-border-t z-border-color">
+                <div class="aui-col-xs-4 aui-padded-5 aui-border-r z-border-deal" @click="goHasStockList">
+                    <p class="aui-text-white">{{formatInvest}}</p>
+                    <p class="aui-text-white">我的权益</p>
+                </div>
+                <div class="aui-col-xs-4 aui-padded-5 aui-border-r z-border-deal">
+                    <p class="aui-text-white">{{formatFrozen}}</p>
+                    <p class="aui-text-white">冻结金额</p>
+                </div>
+                <div class="aui-col-xs-4 aui-padded-5">
+                    <p class="aui-text-white">{{formatBalance}}</p>
+                    <p class="aui-text-white">可用金额</p>
+                </div>
+            </div>
+            <img class="z-bgImg" src="" :src="photo" alt="">
+        </div>
+        <ul class="aui-list aui-list-in aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item" v-for="(value,index) in pageArr1" @click="openPage(index,1)">
+               <div class="aui-list-item-label-icon">
+                   <img src="" :src="value.icon" alt="">
+               </div>
+               <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                   {{value.title}}
+               </div>
+           </li>
+        </ul>
+        <ul class="aui-list aui-list-in aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item" v-for="(value,index) in pageArr2" @click="openPage(index,2)">
+               <div class="aui-list-item-label-icon">
+                   <img src="" :src="value.icon" alt="">
+               </div>
+               <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                   {{value.title}}
+               </div>
+           </li>
+        </ul>
+        <ul class="aui-list aui-list-in aui-margin-t-10 z-no-bt">
+            <li class="aui-list-item" v-for="(value,index) in pageArr3" @click="openPage(index,3)">
+               <div class="aui-list-item-label-icon">
+                   <img src="" :src="value.icon" alt="">
+               </div>
+               <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                   {{value.title}}
+               </div>
+           </li>
+        </ul>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#userCenter',
+            data: {
+                getDataApi: SERVER_PATH + 'Wallet/getWalletInfo',
+                name: '',
+                photo: $api.getStorage('headImg') || api.wgtRootDir + '/image/photo.jpg',
+                money: {
+                    total: '0',
+                    invest: '0',
+                    frozen: '0',
+                    balance: '0',
+                },
+                identification: false,
+                pageArr1: [{
+                    url: 'userInfo.html',
+                    icon: '../../image/uIcon1.png',
+                    title: '个人资料'
+                },{
+                    url: 'pwdAdmin.html',
+                    icon: '../../image/uIcon3.png',
+                    title: '密码管理'
+                }],
+                pageArr2: [{
+                    url: 'recharge.html',
+                    icon: '../../image/uIcon4.png',
+                    title: '充值'
+                },{
+                    url: 'withdraw.html',
+                    icon: '../../image/uIcon5.png',
+                    title: '提现'
+                },{
+                    url: 'moneyRecord.html',
+                    icon: '../../image/uIcon6.png',
+                    title: '资金记录'
+                }],
+                pageArr3: [{
+                    url: 'callCenter.html',
+                    icon: '../../image/uIcon7.png',
+                    title: '客服中心'
+                },{
+                    url: 'settings.html',
+                    icon: '../../image/uIcon8.png',
+                    title: '设置'
+                }],
+            },
+            methods: {
+                init: function(){
+                    vm.listenEvent();
+                    vm.getData();
+                    vm.getPhoto();
+                },
+                listenEvent: function(){
+                    api.addEventListener({
+                        name: 'freshUserPage'
+                    }, function(ret, err){
+                        if( ret ){
+                            vm.getData();
+                        }
+                    });
+                },
+                getData: function(){
+                    var self = this;
+                    api.ajax({
+                        url: self.getDataApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                investorId: $api.getStorage('userId')
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        if (ret && ret.code == 0) {
+                            if(ret.data){
+                                self.money.total = ret.data.total;
+                                self.money.invest = ret.data.invest;
+                                self.money.frozen = ret.data.frozen;
+                                self.money.balance = ret.data.balance;
+                            }
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                openPage: function(index,i){
+                    var self = this;
+                    if(i == 1 && index == 0){
+                        Tool.openWin({
+                            url: '/home/userCenter/userInfo.html'
+                        });
+                    }else{
+                        switch (i) {
+                            case 1: var arr = self.pageArr1;break;
+                            case 2: var arr = self.pageArr2;break;
+                            case 3: var arr = self.pageArr3;break;
+                        }
+                        var text = '';
+                        // if(i == 2 && index == 1) text = 'H2认证';
+                        if(!arr[index].url) return;
+                        Tool.openHeader({
+                            frame: {
+                                title: arr[index].title,
+                                url: api.wgtRootDir + '/home/userCenter/' + arr[index].url,
+                                text: text
+                            }
+                        });
+                    }
+                },
+                goHasStockList: function(){
+                    Tool.openHeader({
+                        frame: {
+                            title: '持仓列表',
+                            url: api.wgtRootDir + '/home/userCenter/chiCang.html',
+                        }
+                    });
+                },
+                getPhoto: function(){
+                    var self = this;
+                    api.ajax({
+                        url: SERVER_PATH + 'User/getUserInfo',
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                investorId: $api.getStorage('userId')
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        log(ret)
+                        if (ret && ret.code == 0) {
+                            if(ret.data && ret.data[0].headimgurl){
+                                self.photo = ret.data[0].headimgurl;
+                                $api.setStorage('headImg', ret.data[0].headimgurl);
+                            }
+                        }
+                    });
+                },
+                uploadPhoto: function(){
+                    api.actionSheet({
+                        title: '上传方式',
+                        cancelTitle: '取消',
+                        buttons: ['拍照上传', '从相册选择']
+                    }, function(ret, err) {
+                        if(ret.buttonIndex == 3) return;
+                        var index = ret.buttonIndex, type;
+                        switch(index){
+                            case 1: type = 'camera';break;
+                            case 2: type = 'album';break;
+                        }
+                        Tool.getPicture(type, 'getPictureAtUserInfo');//选择图片
+                    });
+                    api.addEventListener({
+			    		name : 'getPictureAtUserInfo'
+			    	}, function(ret, err) {
+						var json = ret.value;
+						if(json.ret && json.ret.data){
+	                        Tool.uploadImage(UploadImageApi, json.ret.data, 'uploadImageAtUser'); //上传图片
+							api.addEventListener({
+					    		name : 'uploadImageAtUser'
+					    	}, function(ret, err) {
+					    		console.log(JSON.stringify(ret));
+								var json2 = ret.value;
+                                if(json2.ret.code == 0){
+                                    vm.updatePhoto(json2.ret.CDNPath);
+								}
+					    	});
+	                    }
+			    	});
+                },
+                updatePhoto: function(url){
+                    var self = this;
+                    api.ajax({
+                        url: SERVER_PATH + 'User/setHeadImg',
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                investorId: $api.getStorage('userId'),
+                                url: url,
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        if (ret && ret.code == 0) {
+                            vm.photo = url;
+                            $api.setStorage('headImg', url);
+                            Tool.toastInfo('头像上传成功');
+                        }else{
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                }
+            },
+            computed: {
+                formatTotal: function () {
+                    return Tool.formatMoney(this.money.total);
+                },
+                formatInvest: function () {
+                    return Tool.formatMoney(this.money.invest);
+                },
+                formatFrozen: function () {
+                    return Tool.formatMoney(this.money.frozen);
+                },
+                formatBalance: function () {
+                    return Tool.formatMoney(this.money.balance);
+                },
+            }
+        });
+        vm.init();
+    };
+</script>
+</html>

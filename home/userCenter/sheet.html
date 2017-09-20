@@ -1,0 +1,122 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content sheet" id="app">
+        <div class="z-sheet-header z-clearfix">
+            <img src="" :src="imageUrl" alt="">
+            <span v-if="type == RecordType.Recharge">{{rechargeInfo.statusName}}</span>
+            <span v-if="type == RecordType.Withdraw">{{withdrawInfo.statusName}}</span>
+        </div>
+        <div class="z-sheet">
+            <div class="z-tip">
+                <div v-if="type == RecordType.Recharge" class="z-money">￥{{rechargeInfo.amount}}</div>
+                <div v-if="type == RecordType.Recharge" class="z-text">请在汇款时，将流水单号填入附言栏</div>
+                <div v-if="type == RecordType.Withdraw" class="z-money">￥{{withdrawInfo.amount}}</div>
+            </div>
+            <ul v-if="type == RecordType.Recharge">
+                <li><span>充值金额</span><span>￥{{rechargeInfo.amount}}</span></li>
+                <li><span>收款户名</span><span>{{rechargeInfo.name}}</span></li>
+                <li><span>收款卡号</span><span>{{rechargeInfo.cardNo}}</span></li>
+                <li><span>开户银行</span><span>{{rechargeInfo.bank}}</span></li>
+                <li><span>流水单号</span><span>{{rechargeInfo.orderNo}}</span></li>
+            </ul>
+            <ul v-if="type == RecordType.Withdraw">
+                <li><span>提现金额</span><span>￥{{withdrawInfo.amount}}</span></li>
+                <li><span>手续费</span><span>￥{{withdrawInfo.serviceMoney}}</span></li>
+                <li><span>提现银行</span><span>{{withdrawInfo.bank}}</span></li>
+                <li><span>提现账户</span><span>{{withdrawInfo.name}}</span></li>
+                <li><span>银行卡号</span><span>{{withdrawInfo.cardNo}}</span></li>
+                <li><span>流水单号</span><span>{{withdrawInfo.orderNo}}</span></li>
+            </ul>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        log(api.pageParam)
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                data: api.pageParam.data,
+                type: api.pageParam.RecordType,
+                imageUrl: '',
+                rechargeInfo: {
+                    amount: 0.00,
+                    statusName: '待审核',
+                    orderNo: '-',
+                    bank: '-',
+                    cardNo: '-',
+                    name: '-'
+                },
+                withdrawInfo: {
+                    amount: 0.00,
+                    statusName: '待审核',
+                    orderNo: '-',
+                    bank: '-',
+                    cardNo: '-',
+                    name: '-'
+                },
+                RecordType: Enum.RecordType,
+            },
+            methods: {
+                init: function(){
+                    vm.addEvent();
+                    vm.getData();
+                },
+                getData: function(){
+                    var self = this;
+                    if(self.type == Enum.RecordType.Recharge){
+                        self.rechargeInfo.amount = Tool.formatMoney(self.data.money);
+                        self.rechargeInfo.cardNo = self.data.bankCard || '-';
+                        self.rechargeInfo.orderNo = self.data.orderNo || '-';
+                        self.rechargeInfo.name = self.data.name || '-';
+                        self.rechargeInfo.bank = self.data.bank || '-';
+                        self.rechargeInfo.statusName = Enum.RechargeStatus.filter(function(item){
+                            return item.key == self.data.status;
+                        })[0].value;
+                    }
+                    if(self.type == Enum.RecordType.Withdraw){
+                        self.withdrawInfo.amount = Tool.formatMoney(self.data.amount);
+                        self.withdrawInfo.serviceMoney = Tool.formatMoney(self.data.serviceMoney || 0.00);
+                        self.withdrawInfo.cardNo = self.data.bankCard || '-';
+                        self.withdrawInfo.orderNo = self.data.orderNo || '-';
+                        self.withdrawInfo.name = self.data.realname || '-';
+                        self.withdrawInfo.bank = self.data.bank || '-';
+                        self.withdrawInfo.statusName = Enum.WithdrawStatus.filter(function(item){
+                            return item.key == self.data.status;
+                        })[0].value;
+                    }
+                    switch(self.data.status){
+                        case "1":
+                            self.imageUrl = api.wgtRootDir + '/image/checking.png';break;
+                        case "2":
+                            self.imageUrl = api.wgtRootDir + '/image/checkok.png';break;
+                        case "3":
+                            self.imageUrl = api.wgtRootDir + '/image/checkfail.png';break;
+                    }
+                },
+                addEvent: function(){
+                    setTimeout(function(){
+                        api.sendEvent({
+                            name: 'resetInputAtRechargeAndWithdraw'
+                        });
+                    }, 1000);
+                },
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

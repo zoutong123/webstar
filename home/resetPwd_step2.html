@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html class="sign">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, initial-scale=1.0, width=device-width" />
+    <meta name="format-detection" content="telephone=no, email=no, date=no, address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<body style="background-color: #fff;">
+    <div v-cloak id="resetPwd" class="resetPwd">
+        <div class="aui-content aui-margin-b-15">
+            <ul class="aui-list aui-form-list z-no-bt">
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/password.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <input type="password" v-model="password" placeholder="设置密码(6~16位)" v-focus>
+                        </div>
+                    </div>
+                </li>
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/password.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <input type="password" v-model="confirmPwd" placeholder="确认密码(6~16位)">
+                        </div>
+                    </div>
+                </li>
+            </ul>
+             <p class="aui-margin-t-15">
+                 <div class="aui-btn aui-btn-danger aui-btn-block z-btn" :class="{bgCCC:active}" @click="resetPwd">确认重置</div>
+             </p>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: "#resetPwd",
+            data: {
+                resetPwdApi: SERVER_PATH + 'User/forgetPassword',
+                phone : api.pageParam.phone,
+                verifyCode : api.pageParam.verifyCode,
+                password: "",
+                confirmPwd: "",
+                active: true,
+            },
+            directives:{
+                focus: {
+                    inserted: function (el) {
+                        el.focus();
+                    }
+                }
+        　　},
+            methods: {
+                init: function(){
+                    vm.addEvent();
+                },
+                addEvent: function(){
+                    setTimeout(function(){
+                        api.sendEvent({
+                            name: 'resetInputAtResetPwd_step1'
+                        });
+                    }, 1000);
+                },
+                resetPwd: function(){
+                    var self = this;
+                    if(!isPwd(self.password)){
+                        Tool.toastInfo('输入密码格式不正确');
+                        return;
+                    }
+                    if(!isPwd(self.confirmPwd)){
+                        Tool.toastInfo('确认密码格式不正确');
+                        return;
+                    }
+                    if(!(self.password === self.confirmPwd)){
+                        Tool.toastInfo('两次密码输入不一致');
+                        return;
+                    }
+                    if(self.active){
+                        return;
+                    }
+                    self.active = true;
+                    api.showProgress();
+                    api.ajax({
+                        url: self.resetPwdApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                phone: self.phone,
+                                verifyCode: self.verifyCode,
+                                passWord: self.password,
+                            }
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if (ret) {
+                            if(ret.code == 0){
+                                self.active = false;
+                                Tool.toastInfo(ret.msg || okMsg);
+                                setTimeout(function(){
+                                    api.closeToWin({
+                                        name: 'signIn'
+                                    });
+                                }, 1500);
+                            }else{
+                                self.active = false;
+                                Tool.toastInfo(ret.msg || errMsg);
+                            }
+                        } else {
+                            self.active = false;
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                checkForm: function(){
+                    var self = this;
+                    if(!isPwd(self.password)){
+                        return false;
+                    }
+                    if(!isPwd(self.confirmPwd)){
+                        return false;
+                    }
+                    return true;
+                },
+            },
+            watch: {
+                password: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.active = false;
+                    if(!bool) this.active = true;
+                },
+                confirmPwd: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.active = false;
+                    if(!bool) this.active = true;
+                }
+            }
+        });
+        vm.init();
+    }
+</script>
+</html>

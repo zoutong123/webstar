@@ -1,0 +1,86 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content aui-margin-b-15 moneyRecord" id="moneyRecord">
+        <ul class="aui-list aui-list-in z-no-bt">
+            <li class="aui-list-item" v-for="(value,index) in pageArr" @click="openPage(index)">
+               <div class="aui-list-item-label-icon">
+                   <img src="" :src="value.icon" alt="">
+               </div>
+               <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                   {{value.title}}
+               </div>
+           </li>
+        </ul>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#moneyRecord',
+            data: {
+                pageArr: [{
+                    url: 'rechargeList.html',
+                    icon: '../../image/rechargeIcon.png',
+                    title: '充值记录'
+                },{
+                    url: 'withdrawList.html',
+                    icon: '../../image/withdrawIcon.png',
+                    title: '提现记录'
+                },{
+                    url: 'fenhongList.html',
+                    icon: '../../image/fenhongIcon.png',
+                    title: '分红记录'
+                }]
+            },
+            methods: {
+                init: function(){
+
+                },
+                openPage: function(index){
+                    if(index == 2){
+                        Tool.toastInfo('功能开发中...');
+                        return;
+                    }
+                    var self = this;
+                    switch(index){
+                        case 0:
+                            var eveName = 'rechargeStaTrigger';
+                            var statusArr = Enum.RechargeStatus;
+                            break;
+                        case 1:
+                            var eveName = 'withdrawStaTrigger';
+                            var statusArr = Enum.WithdrawStatus;
+                            break;
+                    }
+                    Tool.openHeader({
+                        name: 'statusWin',
+                        frame: {
+                            title: self.pageArr[index].title,
+                            url: api.wgtRootDir + '/home/userCenter/' + self.pageArr[index].url,
+                            text: '筛选',
+                            eveObj: {
+                                name: eveName,
+                                statusArr: statusArr,
+                            }
+                        },
+                    });
+                },
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

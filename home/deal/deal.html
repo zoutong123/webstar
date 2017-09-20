@@ -1,0 +1,131 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <header class="aui-bar aui-bar-nav aui-bar-info" style="padding-top: 25px;">
+        <div class="aui-title" id="title">转让</div>
+        <a class="aui-pull-right aui-iconfont aui-icon-search z-hide"></a>
+    </header>
+    <div class="aui-bar aui-bar-btn aui-bar-btn-full z-dealTab" id="dealTab">
+        <div class="aui-bar-btn-item" :class="{'aui-active': activeBtn[0]}" v-on:click="switchFrame(0)">收购</div>
+        <div class="aui-bar-btn-item" :class="{'aui-active': activeBtn[1]}" v-on:click="switchFrame(1)">转出</div>
+        <div class="aui-bar-btn-item" :class="{'aui-active': activeBtn[2]}" v-on:click="switchFrame(2)">委托</div>
+        <div class="aui-bar-btn-item" :class="{'aui-active': activeBtn[3]}" v-on:click="switchFrame(3)">历史</div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var header = $api.dom('header'),
+        marketTab = $api.dom('.z-dealTab');
+
+    var headerHeight = $api.offset(header).h;//herder高度
+    var marketTabHeight = $api.offset(marketTab).h;//tab栏高度
+    var footerH = $api.getStorage('footerH');
+
+    var posY = headerHeight+marketTabHeight; //frameGroup的Y坐标
+    var posH = api.winHeight-posY-footerH; //frameGroup的高度
+
+    var vm = new Vue({
+        el: '#dealTab',
+        data: {
+            activeBtn: [1, 0, 0, 0],
+            active: 0,
+        },
+        methods: {
+            init: function(){
+                vm.openFrameGroup();
+                vm.listenEvent();
+            },
+            openFrameGroup: function(){
+                var self = this;
+                api.openFrameGroup({
+                    name : 'dealFrameGroup',
+                    rect : {
+                        x : 0,
+                        y : posY,
+                        w : api.winWidth,
+                        h : posH
+                    },
+                    preload: 0,
+                    frames : [{
+                        name : 'buy',
+                        url : 'buy.html',
+                        vScrollBarEnabled:false,
+                        bounces : false
+                    }, {
+                        name : 'sell',
+                        url : 'sell.html',
+                        vScrollBarEnabled:false,
+                        bounces : false
+                    }, {
+                        name : 'orderList',
+                        url : 'orderList.html',
+                        vScrollBarEnabled:false,
+                        bounces : false
+                    }, {
+                        name : 'history',
+                        url : 'history.html',
+                        vScrollBarEnabled:false,
+                        bounces : false
+                    }]
+                }, function(ret, err) {
+                    Vue.set(vm.activeBtn,self.active,0);
+                    self.active = ret.index;
+                    $api.setStorage('dealIndex', ret.index);
+                    Vue.set(vm.activeBtn,self.active,1);
+                });
+            },
+            switchFrame: function(index){
+                api.setFrameGroupIndex({
+                    name : 'dealFrameGroup',
+                    index : index,
+                    scroll : true
+                });
+            },
+            listenEvent: function(){
+                api.addEventListener({
+                    name: 'doBuyNext'
+                }, function(ret, err){
+                    if( ret ){
+                        vm.switchFrame(0);
+                    }
+                });
+                api.addEventListener({
+                    name: 'doSellNext'
+                }, function(ret, err){
+                    if( ret ){
+                        vm.switchFrame(1);
+                    }
+                });
+                api.addEventListener({
+                    name: 'freshDealPage' //监听事件，刷新页面
+                }, function(ret, err){
+                    if($api.getStorage('dealIndex') === '0'){
+                        api.sendEvent({
+                            name: 'freshDealPage_Buy'
+                        });
+                    }
+                    if($api.getStorage('dealIndex') === '1'){
+                        api.sendEvent({
+                            name: 'freshDealPage_Sell'
+                        });
+                    }
+                });
+            }
+        },
+    });
+    vm.init();
+};
+</script>
+</html>

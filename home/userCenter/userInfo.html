@@ -1,0 +1,273 @@
+<!doctype html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width" />
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<style media="screen">
+    header{
+        position: fixed !important;
+        top: 0;
+    }
+    #app{
+        padding-top: 3.5rem;
+    }
+</style>
+<body>
+    <div v-cloak id="app">
+        <header class="aui-bar aui-bar-nav aui-bar-info" style="padding-top: 1.25rem;">
+            <a class="aui-pull-left aui-iconfont aui-icon-left" @click="beforeClose"></a>
+            <div class="aui-title">个人资料</div>
+        </header>
+        <div class="aui-content aui-margin-b-15 moneyRecord userInfo">
+            <ul class="aui-list aui-list-in aui-margin-t-10 z-no-bt">
+                <li class="aui-list-item">
+                    <div class="aui-list-item-inner z-inner">
+                        审核状态
+                        <span class="aui-pull-right aui-border" style="padding: 0.15rem 0.25rem;">{{userInfo.staName}}</span>
+                    </div>
+                </li>
+                <li class="aui-list-item" @click="openPage(0)">
+                    <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                        姓名
+                        <span class="aui-pull-right">{{userInfo.realname}}</span>
+                    </div>
+                </li>
+                <li class="aui-list-item" @click="openPage(1)">
+                    <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                        身份证号
+                        <span class="aui-pull-right">{{userInfo.idCard}}</span>
+                    </div>
+                </li>
+                <li class="aui-list-item">
+                    <div class="aui-list-item-inner z-inner">
+                        身份证正面
+                        <img v-if="userInfo.idCardOnURL" src="" :src="userInfo.idCardOnURL" alt="" @click="uploadImage(1)">
+                        <span v-else class="aui-pull-right z-upbtn" style="padding: 0.15rem 0.5rem;" @click="uploadImage(1)">上传</span>
+                    </div>
+                </li>
+                <li class="aui-list-item">
+                    <div class="aui-list-item-inner z-inner">
+                        身份证反面
+                        <img v-if="userInfo.idCardOffURL" src="" :src="userInfo.idCardOffURL" alt="" @click="uploadImage(0)">
+                        <span v-else class="aui-pull-right z-upbtn" style="padding: 0.15rem 0.5rem;" @click="uploadImage(0)">上传</span>
+                    </div>
+                </li>
+                <li class="aui-list-item" @click="openPage(2)">
+                    <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                        开户行
+                        <span class="aui-pull-right">{{userInfo.bank}}</span>
+                    </div>
+                </li>
+                <li class="aui-list-item" @click="openPage(3)">
+                    <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                        开户网点
+                        <span class="aui-pull-right">{{userInfo.openingBank}}</span>
+                    </div>
+                </li>
+                <li class="aui-list-item" @click="openPage(4)">
+                    <div class="aui-list-item-inner aui-list-item-arrow z-inner">
+                        银行卡号
+                        <span class="aui-pull-right">{{userInfo.bankCard}}</span>
+                    </div>
+                </li>
+            </ul>
+            <div v-if="userInfo.status != 1" class="aui-padded-r-10 aui-padded-l-10 mt-40" @click="confirm">
+                <div class="aui-btn aui-btn-danger aui-btn-block z-bg">确定</div>
+            </div>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function() {
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                userInfo: {
+                    status: '',
+                    staName: '',
+                    realname: '',
+                    idCard: '',
+                    idCardOnURL: '',
+                    idCardOffURL: '',
+                    bank: '',
+                    openingBank: '',
+                    bankCard: '',
+                },
+                infochange: false,
+                pageArr: [
+                    { title: "姓名", key: "realname", type: "text"},
+                    { title: "身份证号", key: "idCard", type: "text"},
+                    { title: "开户行", key: "bank", type: "text"},
+                    { title: "开户网点", key: "openingBank", type: "text"},
+                    { title: "银行卡号", key: "bankCard", type: "tel"},
+                ]
+            },
+            methods: {
+                init: function() {
+                    this.listenEvent();
+                    this.getData();
+                },
+                listenEvent: function(){
+                    api.addEventListener({
+                        name: 'userInfoEdit'
+                    }, function(ret, err){
+                        if( ret ){
+                            vm.userInfo[ret.value.key] = ret.value.value;
+                            vm.infochange = true;
+                        }
+                    });
+                    api.addEventListener({
+                        name: 'giveUpSave'
+                    }, function(ret, err){
+                        closeWin();
+                    });
+                    api.addEventListener({
+                        name: 'keyback'
+                    }, function(ret, err){
+                        vm.beforeClose();
+                    });
+                },
+                beforeClose: function(){
+                    if(this.infochange){
+                        Tool.confirm('放弃保存修改?', 'giveUpSave');
+                    }else{
+                        closeWin();
+                    }
+                },
+                getData: function(){
+                    var self = this;
+                    api.ajax({
+                        url: SERVER_PATH + 'User/getUserInfo',
+                        method: 'post',
+                        data: {
+                            values: {
+                                AccessToken: $api.getStorage('token'),
+                                investorId: $api.getStorage('userId')
+                            },
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        log(ret)
+                        if (ret && ret.code == 0) {
+                            if(ret.data){
+                                var data = ret.data[0];
+                                vm.userInfo.status = data.status;
+                                vm.userInfo.staName = Enum.InvestorStatus.filter(function(item){
+                                    return item.key == data.status;
+                                })[0].value;
+                                vm.userInfo.realname = data.realname || '';
+                                vm.userInfo.idCard = data.idCard || '';
+                                vm.userInfo.idCardOnURL = data.idCardOnURL || '';
+                                vm.userInfo.idCardOffURL = data.idCardOffURL || '';
+                                vm.userInfo.bank = data.bank || '';
+                                vm.userInfo.openingBank = data.openingBank || '';
+                                vm.userInfo.bankCard = data.bankCard || '';
+                            }
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                openPage: function(index) {
+                    if(this.userInfo.status == 1) return;
+                    Tool.openHeader({
+                        frame: {
+                            title: vm.pageArr[index].title,
+                            url: api.wgtRootDir + '/home/userCenter/input.html',
+                            param: {
+                                title: vm.pageArr[index].title,
+                                type: vm.pageArr[index].type,
+                                key: vm.pageArr[index].key,
+                                value: vm.userInfo[vm.pageArr[index].key]
+                            }
+                        }
+                    });
+                },
+                confirm: function(){
+                    Tool.confirm('确认提交?', 'updateInfo');
+                    api.addEventListener({
+                        name: 'updateInfo'
+                    }, function(ret, err){
+                        vm.updateUserInfo();
+                    });
+                },
+                updateUserInfo: function(){
+                    var data = this.userInfo;
+                    data.AccessToken = $api.getStorage('token');
+                    data.investorId = $api.getStorage('userId');
+                    api.showProgress();
+                    api.ajax({
+                        url: SERVER_PATH + 'User/setUserInfo',
+                        method: 'post',
+                        data: {
+                            values: data,
+                            files: {}
+                        }
+                    }, function(ret, err) {
+                        log(ret)
+                        api.hideProgress();
+                        if (ret && ret.code == 0) {
+                            Tool.toastInfo(ret.msg || okMsg);
+                            setTimeout(function(){
+                                closeWin();
+                            }, 1500);
+                        } else {
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                uploadImage: function(index){
+                    if(this.userInfo.status == 1) return;
+                    api.actionSheet({
+                        title: '上传方式',
+                        cancelTitle: '取消',
+                        buttons: ['拍照上传', '从相册选择']
+                    }, function(ret, err) {
+                        if(ret.buttonIndex == 3) return;
+                        var index = ret.buttonIndex, type;
+                        switch(index){
+                            case 1: type = 'camera';break;
+                            case 2: type = 'album';break;
+                        }
+                        Tool.getPicture(type, 'getPictureAtUserInfo');//选择图片
+                    });
+
+                    api.addEventListener({
+			    		name : 'getPictureAtUserInfo'
+			    	}, function(ret, err) {
+						var json = ret.value;
+						if(json.ret && json.ret.data){
+	                        Tool.uploadImage(UploadImageApi, json.ret.data, 'uploadImageAtUserInfo'); //上传图片
+							api.addEventListener({
+					    		name : 'uploadImageAtUserInfo'
+					    	}, function(ret, err) {
+								var json2 = ret.value;
+								if(json2.ret.code == 0){
+									var src = json2.ret.CDNPath;
+									if(index == 1) vm.userInfo.idCardOnURL = src;
+									if(index == 0) vm.userInfo.idCardOffURL = src;
+                                    vm.infochange = true;
+								}else{
+									Tool.toastInfo(errMsg);
+								}
+					    	});
+	                    }
+			    	});
+                }
+            },
+        });
+        vm.init();
+    };
+</script>
+
+</html>

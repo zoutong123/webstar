@@ -1,0 +1,165 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="aui-content z-marketList" id="search">
+        <div class="aui-searchbar">
+            <div class="aui-searchbar-input aui-border-radius">
+                <i class="aui-iconfont aui-icon-search"></i>
+                <input type="search" placeholder="请输入搜索内容" id="search-input">
+                <div class="aui-searchbar-clear-btn">
+                    <i class="aui-iconfont aui-icon-close"></i>
+                </div>
+            </div>
+            <div class="aui-searchbar-btn" tapmode>取消</div>
+        </div>
+        <ul class="aui-list aui-list-noborder aui-media-list aui-margin-b-15" style="padding-top: 2.2rem;">
+            <li v-for="(value,index) in dataArr" class="aui-list-item aui-list-item-middle aui-border-b" @click="IPOView(value.id, value.name)">
+                <div class="aui-media-list-item-inner">
+                    <div class="aui-list-item-media">
+                        <img src="" :src="value.src" class="aui-list-img-sm">
+                        <img v-if="value.status == 0" class="z-rengouImg" src="../image/rengou.png" alt="">
+                    </div>
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-title aui-font-size-16">{{value.name}}</div>
+                            <div v-if="value.type == 1" class="aui-list-item-right z-price-1">{{value.rate}}</div>
+                            <div v-if="value.type == 2" class="aui-list-item-right z-price-2">{{value.rate}}</div>
+                        </div>
+                        <div class="aui-list-item-text">
+                            <div class="aui-list-item-right z-ml-0" style="margin-left: 0;">平台: {{value.tv}}</div>
+                            <div class="aui-list-item-right">{{value.price}}元/股</div>
+                        </div>
+                    </div>
+                </div>
+            </li>
+        </ul>
+    </div>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var vm = new Vue({
+            el: '#search',
+            data: {
+                keywords: '',
+                searchApi: SERVER_PATH + '',
+                page: 1,
+                maxPage: 1,
+                dataArr: []
+            },
+            methods: {
+                init: function(){
+                    vm.search();
+                },
+                search: function(){
+                    var self = this;
+                    var searchBar = document.querySelector(".aui-searchbar");
+                    var searchBarInput = document.querySelector(".aui-searchbar input");
+                    var searchBarBtn = document.querySelector(".aui-searchbar .aui-searchbar-btn");
+                    var searchBarClearBtn = document.querySelector(".aui-searchbar .aui-searchbar-clear-btn");
+                    if(searchBar){
+                        searchBarInput.onclick = function(){
+                            searchBarBtn.style.marginRight = 0;
+                        }
+                        searchBarInput.oninput = function(){
+                            if(this.value.length){
+                                searchBarClearBtn.style.display = 'block';
+                                searchBarBtn.classList.add("aui-text-info");
+                                searchBarBtn.textContent = "搜索";
+                            }else{
+                                searchBarClearBtn.style.display = 'none';
+                                searchBarBtn.classList.remove("aui-text-info");
+                                searchBarBtn.textContent = "取消";
+                            }
+                        }
+                    }
+                    searchBarClearBtn.onclick = function(){
+                        this.style.display = 'none';
+                        searchBarInput.value = '';
+                        searchBarBtn.classList.remove("aui-text-info");
+                        searchBarBtn.textContent = "取消";
+                    }
+                    searchBarBtn.onclick = function(){
+                        var keywords = searchBarInput.value;
+                        self.keywords = keywords;
+						if(keywords.length){
+							this.style.marginRight = "-"+this.offsetWidth+"px";
+							searchBarInput.value = '';
+							searchBarInput.blur();
+							self.dataArr = [];
+							self.page = 1;
+							self.getData();
+						}else{
+							this.style.marginRight = "-"+this.offsetWidth+"px";
+							searchBarInput.value = '';
+							searchBarInput.blur();
+						}
+                    }
+                    $api.dom('#search-input').onkeypress = function(event){
+                        if (event.keyCode == "13") {
+ 						   event.preventDefault();
+ 						   //回车执行查询
+ 						   searchBarBtn.click();
+ 					   }
+                    }
+                },
+                getData: function(){
+                    var self = this;
+                    // api.ajax({
+                    //     url: self.getHotIPOListApi,
+                    //     method: 'post',
+                    //     data: {
+                    //         values: {
+                    //             page: self.page
+                    //         },
+                    //         files: {}
+                    //     }
+                    // }, function(ret, err) {
+                    //     if (ret) {
+                    //         self.maxPage = ret.maxPage;
+                    //         ret.data.forEach(function(item){
+                    //             self.dataArr.push(item);
+                    //         });
+                    //     } else {
+                    //         Tool.toastInfo(errMsg);
+                    //     }
+                    // });
+                    api.readFile({
+                        path: api.wgtRootDir + '/res/hotIPO.json'
+                    }, function(ret, err){
+                        var res = JSON.parse(ret.data);
+                        res.data.forEach(function(item){
+                            item.src = api.wgtRootDir + '/image/photo.jpg';
+                            item.typeCss = 'z-price-' +  item.type;
+                            self.dataArr.push(item);
+                        });
+                    });
+                },
+                IPOView: function(id, title){
+                    Tool.openHeader({
+                        frame: {
+                            title: title,
+                            url: api.wgtRootDir+'/home/home/IPODetail.html',
+                            param: {
+                                IPOId: id
+                            }
+                        }
+                    });
+                },
+            },
+        });
+        vm.init();
+    };
+</script>
+</html>

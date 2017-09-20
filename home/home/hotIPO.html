@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui-slide.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<style media="screen">
+    .aui-slide-node img{
+        object-fit: cover;
+    }
+</style>
+<body>
+    <div id="slide" style="height: 0.4vw;">
+
+    </div>
+    <div v-cloak class="hotIPO" id="hotIPO">
+        <div class="z-header-text">
+            <span class="z-line" style="background: -webkit-gradient(linear, 0% 0%, 100% 0%,from(#FF7AB2), to(#f01457));"></span>
+            <span class="z-text z-price-2">热门网红</span>
+            <span class="z-line" style="background: -webkit-gradient(linear, 0% 0%, 100% 0%,from(#f01457), to(#FF7AB2));"></span>
+        </div>
+        <ul class="hotIPOList z-clearfix">
+            <li class="aui-pull-left" v-for="(value,index) in dataArr" @click="IPOView(value.stockId, value.starId, value.nickname, value.coverPhotoURL, value.stockCode)">
+                <img class="z-ipo-img" src="" :src="value.coverPhotoURL" alt="">
+                <img v-if="value.state == 0" class="z-rengouImg" src="../../image/rengou.png" alt="">
+                <div class="z-ipo-info z-clearfix">
+                    <div class="z-info-1 aui-ellipsis-1">{{value.nickname}}<span>({{value.stockCode}})</span></div>
+                    <div v-if="value.type == 1" class="z-info-2 aui-ellipsis-1 z-price-1">{{value.Arbitrage || 0}}%</div>
+                    <div v-else-if="value.type == 2" class="z-info-2 aui-ellipsis-1 z-price-2">{{value.Arbitrage || 0}}%</div>
+                    <div class="z-info-3 aui-ellipsis-1">平台: {{value.showPlatform}}</div>
+                    <div class="z-info-4 aui-ellipsis-1">{{value.price}}元/份</div>
+                </div>
+                <div class="z-ipo-btn aui-text-center">我投Ta</div>
+            </li>
+        </ul>
+        <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15" :class="{'z-pt-30': nullData}"><span>{{listMsg}}</span></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/dist/template.js"></script>
+<script type="text/javascript" src="../../script/dist/aui/aui-slide.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/html" id="tpl-banner">
+    <div class="aui-slide-wrap" >
+        {{each data as value index}}
+            <div class="aui-slide-node bg-dark z-banner" onclick="openPage({{index}})">
+                <img src="{{value.image}}" />
+            </div>
+        {{/each}}
+    </div>
+    <div class="aui-slide-page-wrap"></div>
+</script>
+<script type="text/javascript">
+var _arr = [];
+apiready = function(){
+    var HomePage = function(){
+        this.getBannersApi = SERVER_PATH + 'Index/getBanner';
+        this.init();
+    };
+    HomePage.prototype = {
+        init: function(){
+            this.getBanners();
+        },
+        getBanners: function(){
+            var self = this;
+            api.ajax({
+                url: self.getBannersApi,
+                method: 'post',
+                data: {
+                    values: {},
+                    files: {}
+                }
+            }, function(ret, err) {
+                log(ret)
+                if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                    Tool.imageCache(ret.data, 'image', function(){
+                        self.drawBanners(ret.data);
+                        _arr = ret.data;
+                    });
+                }else{
+                    self.drawBanners([
+                        api.wgtRootDir + '/image/banner.png'
+                    ]);
+                }
+            });
+        },
+        drawBanners: function(bannersArr){
+            var self = this;
+            $api.html(document.getElementById("slide"), template('tpl-banner', {"data": bannersArr}))
+            new auiSlide({
+                "container":document.getElementById("slide"),
+                "height":api.winWidth * 0.4,
+                "speed":500,
+                "autoPlay": 3000, //自动播放
+                "loop":true,
+                "pageShow":true,
+                "pageStyle":'dot',
+                'dotPosition':'center'
+            });
+        },
+    };
+    new HomePage();
+    var vm = new Vue({
+        el: '#hotIPO',
+        data: {
+            dataArr: [],
+            getHotIPOListApi : SERVER_PATH + 'Index/getStarList',
+            page : 1,
+            length: 10,
+            maxPage : 1,
+            listMsg: '',
+            nullData: false
+        },
+        methods: {
+            init: function(){
+                vm.getData();
+                vm.loadMore();
+                vm.refresh();
+            },
+            getData: function(){
+                var self = this;
+                api.showProgress();
+                api.ajax({
+                    url: self.getHotIPOListApi,
+                    method: 'post',
+                    data: {
+                        values: {
+                            start: self.page,
+                            length: self.length
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    log(ret)
+                    api.hideProgress();
+                    if (ret) {
+                        if(ret.code == 0 && ret.data && ret.data.length){
+                            Tool.imageCache(ret.data, 'coverPhotoURL', function(){
+                                self.maxPage = parseInt(ret.recordsTotal / self.length) + 1;
+                                ret.data.forEach(function(item){
+                                    if(!item.price && item.state != Enum.IPOStatus[1].key) item.price = Enum.IPOPrice;
+                                    item.price = Tool.formatMoney(item.price);
+                                    if(item.Arbitrage){
+                                        item.type = item.Arbitrage > 0 ? 2 : 1;
+                                        item.Arbitrage = Math.abs(item.Arbitrage) * 100;
+                                    }else{
+                                        item.type = 1;
+                                        item.Arbitrage = 0;
+                                    }
+                                    self.dataArr.push(item);
+                                });
+                            });
+                        }else{
+                            vm.listMsg = HasNotData;
+                        }
+                    } else {
+                        Tool.toastInfo(errMsg);
+                    }
+                });
+            },
+            IPOView: function(stockId, starId, title, src, stockCode){
+                Tool.openHeader({
+                    frame: {
+                        title: title,
+                        url: api.wgtRootDir+'/home/home/IPODetail.html',
+                        param: {
+                            stockId: stockId,
+                            starId: starId,
+                            title: title,
+                            src: src,
+                            stockCode: stockCode
+                        }
+                    }
+                });
+            },
+            loadMore: function(){
+                var self = this;
+                Tool.loadMore(function(){
+                    if (self.page && self.maxPage && vm.listMsg != HasNotData) {
+                        if (parseInt(self.page) < parseInt(self.maxPage)) {
+                            self.page++;
+                            vm.getData();
+                        } else {
+                            vm.listMsg = LoadAll;
+                        }
+                    }
+                });
+            },
+            refresh: function(){
+                var self = this;
+                Tool.refreshPage(function(){
+                    vm.listMsg = '';
+                    self.page = 1;
+                    self.maxPage = 1;
+                    self.dataArr = [];
+                    vm.getData();
+                });
+            }
+        },
+    });
+    vm.init();
+};
+function openPage(index){
+    if(_arr[index].jumpURL){
+        Tool.openHeader({
+            frame: {
+                title: _arr[index].titile || '链接页面',
+                url: _arr[index].jumpURL
+            }
+        });
+    }
+}
+</script>
+</html>

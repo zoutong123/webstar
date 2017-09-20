@@ -1,0 +1,279 @@
+<!DOCTYPE HTML>
+<html class="sign">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, initial-scale=1.0, width=device-width" />
+    <meta name="format-detection" content="telephone=no, email=no, date=no, address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<style>
+    html,body{
+        height: 100vh;
+        background-image: url('../image/bg.png');
+        background-size: cover;
+    }
+</style>
+<body style="background-color: #fff;">
+    <header class="aui-bar aui-bar-nav" style="background-color: rgba(255,255,255,0);background-image: none;">
+        <a class="aui-pull-left aui-btn" onclick="closeWin();">
+            <span class="aui-iconfont aui-icon-close" style="color: #fff;"></span>
+        </a>
+    </header>
+    <div v-cloak id="signIn" class="signIn">
+        <div class="z-logo">
+            <img src="../image/logo_2.png">
+        </div>
+        <div class="aui-content aui-margin-b-15">
+            <ul class="aui-list aui-form-list z-no-bt">
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/phone_2.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <!-- <span class="z-prefix-phone aui-border-r">+86</span> -->
+                            <input class="z-phone" type="tel" v-model="phone" placeholder="输入手机号">
+                        </div>
+                    </div>
+                </li>
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/password_2.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <input type="password" v-model="password" placeholder="输入密码(6~16位)">
+                        </div>
+                    </div>
+                </li>
+            </ul>
+             <p class="aui-margin-t-15">
+                 <div class="aui-btn aui-btn-danger aui-btn-block z-btn" :class="{bgCCC:signInIng}" @click="login">登&nbsp;&nbsp;录</div>
+             </p>
+             <p class="z-go">
+                 <span class="z-fc-fff" @click="signUp">立即注册</span>
+                 <span class="z-fc-fff aui-pull-right" @click="resetPwd">忘记密码</span>
+             </p>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        console.log(api.winName)
+        $api.fixStatusBar($api.dom('header'));
+        var vm = new Vue({
+            el: "#signIn",
+            data: {
+                loginApi : SERVER_PATH + 'User/logIn',
+                phone : $api.getStorage('phone'),
+                password : "",
+                signInIng: true,
+                hasWx: false
+            },
+            methods: {
+                init: function(){
+
+                },
+                login: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        Tool.toastInfo('手机号格式不正确');
+                        return;
+                    }
+                    if(!isPwd(self.password)){
+                        Tool.toastInfo('密码格式6~16位数字字母组合');
+                        return;
+                    }
+                    if(self.signInIng){
+                        return;
+                    }
+                    self.signInIng = true;
+                    $api.setStorage('phone', self.phone);
+                    $api.setStorage('password', self.password);
+                    api.showProgress();
+                    api.ajax({
+                        url: self.loginApi,
+                        method: 'post',
+                        data: {
+                            values: {
+                                phone: self.phone,
+                                passWord: self.password,
+                                accessToken: $api.getStorage('token'),
+                                deviceToken: api.deviceId,
+                                OS: api.systemType+api.systemVersion,
+                            }
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if (ret) {
+                            if(ret.code == 0){
+                                self.signInIng = false;
+                                Tool.toastInfo(ret.msg || okMsg);
+                                $api.setStorage('token',ret.data.accessToken);
+                                $api.setStorage('userId',ret.data.id);
+                                $api.setStorage('walletId',ret.data.walletId);
+                                $api.setStorage('H2OK',ret.data.prove);
+                                $api.setStorage('isLogin','true');
+                                $api.setStorage('investorStatus',ret.data.status);
+                                $api.setStorage('openingTime',ret.data.openingTime);
+                                $api.setStorage('closingTime',ret.data.closingTime);
+                                api.closeWin();
+                            }else{
+                                self.signInIng = false;
+                                Tool.toastInfo(ret.msg || errMsg);
+                            }
+                        } else {
+                            self.signInIng = false;
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                checkForm: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        return false;
+                    }
+                    if(!isPwd(self.password)){
+                        return false;
+                    }
+                    return true;
+                },
+                signUp: function(){
+                    Tool.openWin({
+                        name: 'signUp',
+                        url: '/home/signUp.html'
+                    });
+                },
+                resetPwd: function(){
+                    Tool.openHeader({
+                        name: "resetPwd_step1",
+                        frame: {
+                            title: '找回密码',
+                            url: api.wgtRootDir + '/home/resetPwd_step1.html'
+                        }
+                    });
+                }
+                // wxIsInstalled: function(){
+                //     var wx = api.require('wx');
+                //     wx.isInstalled(function(ret, err) {
+                //         if (ret.installed) {
+                //             this.hasWx = true;
+                //         } else {
+                //             this.hasWx = false;
+                //         }
+                //     });
+                // },
+                // wxLogin: function(){
+                //     WXLogin.wxSignIn();
+                // }
+            },
+            watch: {
+                phone: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.signInIng = false;
+                    if(!bool) this.signInIng = true;
+                },
+                password: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.signInIng = false;
+                    if(!bool) this.signInIng = true;
+                }
+            }
+        });
+        vm.init();
+        // var WXLogin = {
+        //     dom: $api.dom('#wxSignIn'),
+        //     userInfo: {},
+        //     wxSignIn: function(){
+        //         if($api.hasCls(WXLogin.dom, 'wxIng')) return;
+        //         $api.addCls(WXLogin.dom, 'wxIng');
+        //         var wx = api.require('wx');
+        //         var code = '';//字符串类型；getToken 接口需传入此值，用于换取 accessToken
+        //         var accessToken = '';//字符串类型；接口调用凭证，传给 getUserInfo 接口 获取用户信息；有效期2小时
+        //         var openId = '';//字符串类型；授权用户唯一标识
+        //         wx.auth({
+        //             apiKey: wxApiKey
+        //         }, function(ret, err) {
+        //             if (ret.status) {
+        //                 code =  ret.code;
+        //                 getToken(code);
+        //             } else {
+        //                 if(err.code == 1 || err.code == 2){
+        //                     Tool.toastInfo('取消微信登录');
+        //                 }else if(err.code == 3){
+        //                     Tool.toastInfo('当前设备未安装微信客户端,请先安装');
+        //                 }
+        //             }
+        //         });
+        //         function getToken(code){
+        //             wx.getToken({
+        //                 code: code
+        //             }, function(ret, err) {
+        //                 if (ret.status) {
+        //                     accessToken = ret.accessToken;
+        //                     openId = ret.openId;
+        //                     getWXUserInfo(accessToken,openId);
+        //                 } else {
+        //                     alert('微信登录失败');
+        //                 }
+        //             });
+        //         }
+        //         function getWXUserInfo(accessToken,openId){
+        //             wx.getUserInfo({
+        //                 accessToken: accessToken,
+        //                 openId: openId
+        //             }, function(ret, err) {
+        //                 if (ret.status) {
+        //                     userInfo.openid = ret.openid;//字符串类型；普通用户的标识，对当前开发者帐号唯一
+        //                     userInfo.nickname = ret.nickname;//字符串类型；普通用户昵称
+        //                     userInfo.sex = ret.sex;//数字类型；普通用户性别，1为男性，2为女性
+        //                     userInfo.headimgurl = ret.headimgurl;//字符串类型；用户头像，最后一个数值代表正方形头像大小（有0、46、64、96、132数值可选，0代表640*640正方形头像），用户没有头像时该项为空
+        //                     //userInfo.privilege = ret.privilege;//数组类型；用户特权信息，如微信沃卡用户为（chinaunicom）
+        //                     //userInfo.unionid = ret.unionid;//字符串类型；用户统一标识。针对一个微信开放平台帐号下的应用，同一用户的unionid是唯一的。
+        //                     WXLogin.signUpByWx(userInfo);
+        //                 } else {
+        //                     alert('微信登录失败');
+        //                 }
+        //             });
+        //         }
+        //     },
+        //     signUpByWx: function(){
+        //         var openid = WXLogin.userInfo.openid;
+        //         WXLogin.checkWxOpenid(openid);
+        //     },
+        //     checkWxOpenid: function(openid){
+        //         api.ajax({
+        //             url: SERVER_PATH + '/user/wxSignUp',
+        //             method: 'post',
+        //             data: {
+        //                 values: {
+        //                     openid: openid
+        //                 },
+        //                 files: {}
+        //             }
+        //         }, function(ret, err) {
+        //             if (ret) {
+        //                 $('#wxSignIn').removeClass('wxIng');
+        //                 $api.setStorage('isLogin',true);//设置localStorage数据
+        //                 Tool.openWin({
+        //                     url: '/home/main.html'
+        //                 });
+        //             } else {
+        //                 $('#wxSignIn').removeClass('wxIng');
+        //                 Tool.openHeader({
+        //                     url: 'bindPhone.html',
+        //                     param: userInfo
+        //                 });
+        //             }
+        //         });
+        //     }
+        // };
+    }
+</script>
+</html>

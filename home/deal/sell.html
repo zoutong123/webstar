@@ -1,0 +1,530 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<body>
+    <div v-cloak class="z-sellPage" id="sellPage">
+        <div class="z-buyform z-clearfix">
+            <div class="aui-col-xs-8 aui-padded-r-5 z-pos-rel" style="max-width: calc(100% - 5.5rem);">
+                <input type="text" v-model="ipoForm.ipoNameCode"
+                    placeholder="ID" @focus="focus">
+                <div class="z-num mt z-clearfix">
+                    <img class="iconImg aui-pull-left" src="" :src="minusImg" alt="" @click="minus(1)">
+                    <input class="aui-pull-left" type="number" v-model.number="ipoForm.ipoPrice" placeholder="价格/元" @focus="toggleFocus(0)" @blur="toggleFocus(1)">
+                    <img class="iconImg aui-pull-right" src="" :src="plusImg" alt="" @click="plus(1)">
+                </div>
+                <div class="z-num mt z-clearfix">
+                    <img class="iconImg aui-pull-left" src="" :src="minusImg" alt="" @click="minus(2)">
+                    <input class="aui-pull-left" type="tel" v-model.number="ipoForm.ipoNum" placeholder="数量/份">
+                    <img class="iconImg aui-pull-right" src="" :src="plusImg" alt="" @click="plus(2)">
+                </div>
+                <div class="z-buyBtn mt" :class="{bg444: !dealTime}" @click="confirm">转让</div>
+                <div class="z-chooseList" :class="{'aui-hide': !ipoForm.focus}">
+                    <li v-for="(value, index) in ipoForm.matchArr" @click="choose(value)">
+                        <span v-html="value.nameHtml"></span>&nbsp;
+                        <span v-html="value.codeHtml"></span>
+                    </li>
+                </div>
+            </div>
+            <div class="aui-col-xs-4 aui-border" style="min-width: 5.5rem;" @click="closeLeft">
+                <ul class="z-sellList aui-border-b">
+                    <li v-for="(value,index) in sellArr"><span class="aui-col-xs-3">转{{5-index}}</span><span class="aui-col-xs-3 z-price-1">{{value.price}}</span><span class="aui-col-xs-6 aui-pull-right">{{value.amount}}</span></li>
+                </ul>
+                <ul class="z-buyList">
+                    <li v-for="(value,index) in buyArr"><span class="aui-col-xs-3">收{{index+1}}</span><span class="aui-col-xs-3 z-price-2">{{value.price}}</span><span class="aui-col-xs-6 aui-pull-right">{{value.amount}}</span></li>
+                </ul>
+            </div>
+        </div>
+        <div class="z-history aui-padded-b-15 aui-padded-t-15">
+            <li v-for="(value, index) in sellList">
+                <p class="z-title aui-border-b">
+                    <span class="z-icon">转</span>
+                    <span class="aui-padded-r-10">{{value.nickname}}</span>
+                    <span>{{value.stockCode}}</span>
+                    <span v-if="value.status == 4" class="z-cancel aui-text-info">撤单中</span>
+                    <span v-else class="z-cancel" @click="cancelOrder(value.orderId, value.stockCode)">撤单</span>
+                </p>
+                <div class="z-body aui-border-b z-clearfix">
+                    <div class="aui-col-xs-6 z-con"><p>￥{{value.price}}</p><p>价格</p></div>
+                    <div class="aui-col-xs-6 z-con"><p>{{value.amount - value.residueAmount}}</p><p>成交量</p></div>
+                </div>
+                <div class="z-footer">
+                    <p><span>数量</span><span class="aui-pull-right">{{value.amount}}</span></p>
+                    <p><span>日期</span><span class="aui-pull-right">{{value.createTime}}</span></p>
+                </div>
+            </li>
+            <div v-if="listMsg" class="aui-text-center z-null-data aui-margin-t-15"><span>{{listMsg}}</span></div>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/dist/fastclick.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var vm = new Vue({
+        el: '#sellPage',
+        data: {
+            ipoForm: {
+                ipoNameCode: null,
+                ipoName: null,
+                ipoCode: null,
+                stockId: null,
+                ipoPrice: null,
+                ipoNum: null,
+                ipoStatus: null,
+                focus: false,
+                matchArr: []
+            },
+            plusImg: api.wgtRootDir + '/image/plus.png',
+            minusImg: api.wgtRootDir + '/image/minus.png',
+            dataArr: [],
+            buyArr: [],
+            sellArr: [],
+            sellList: [],
+            listMsg: '',
+            highPrice: 0, //价格上限
+            lowPrice: 0, //价格下限
+            priceFocus: false,
+            dealTime: 1 //1：处于开盘时间区间,正常买卖；0：收盘了
+        },
+        methods: {
+            init: function(){
+                for(var i=0;i<5;i++){
+                    this.buyArr.push({price: '--',amount: '--'});
+                    this.sellArr.push({price: '--',amount: '--'});
+                }
+                vm.checkDealTime();
+                vm.getData();
+                vm.listenEvent();
+                vm.getALLDealList();
+                vm.refresh();
+            },
+            listenEvent: function(){
+                var self = this;
+                api.addEventListener({
+                    name: 'sellOk' //监听事件，刷新挂单列表
+                }, function(ret, err){
+                    vm.getALLDealList();
+                    vm.getOrderData(self.ipoForm.ipoCode, self.ipoForm.stockId);
+                });
+                api.addEventListener({ //详情页进入， 填充买入股票
+                    name: 'doSellNext'
+                }, function(ret, err){
+                    vm.checkDealTime();
+                    if(vm.dataArr.length && $api.getStorage('sellStockId')){
+                        vm.choose(vm.dataArr.filter(function(item){
+                            return item.stockId == $api.getStorage('sellStockId');
+                        })[0]);
+                        setTimeout(function(){
+                            $api.setStorage('sellStockId', '');
+                        }, 500);
+                    }
+                });
+                api.addEventListener({
+                    name: 'freshDealPage_Sell' //监听事件，刷新页面
+                }, function(ret, err){
+                    console.log('切换卖出了...');
+                    if(self.ipoForm.stockId && self.ipoForm.ipoStatus == Enum.IPOStatus[1].key && $api.getStorage('sellStockId') == ''){
+                        $api.setStorage('sellStockId', self.ipoForm.stockId);
+                    }
+                    vm.checkDealTime();
+                    vm.getData();
+                    vm.getALLDealList();
+                });
+            },
+            plus: function(index){
+                if(index == 1){
+                    this.ipoForm.ipoPrice = Math.round((this.ipoForm.ipoPrice + 1)*100)/100;
+                }
+                if(index == 2){
+                    this.ipoForm.ipoNum += 1;
+                }
+            },
+            minus: function(index){
+                if(index == 1 && this.ipoForm.ipoPrice > 1){
+                    this.ipoForm.ipoPrice = Math.round((this.ipoForm.ipoPrice - 1)*100)/100;
+                }
+                if(index == 2 && this.ipoForm.ipoNum > 1){
+                    this.ipoForm.ipoNum -= 1;
+                }
+            },
+            toggleFocus: function(i){
+                this.priceFocus = !this.priceFocus;
+                if(i == 1){
+                    if(this.ipoForm.ipoNameCode && this.ipoForm.ipoPrice > this.highPrice && !this.priceFocus){
+                        Tool.toastInfo('价格不能超过'+this.highPrice);
+                        vm.ipoForm.ipoPrice = this.highPrice;
+                    }
+                    if(this.ipoForm.ipoNameCode && this.ipoForm.ipoPrice < this.lowPrice && !this.priceFocus){
+                        Tool.toastInfo('价格不能低于'+this.lowPrice);
+                        vm.ipoForm.ipoPrice = this.lowPrice;
+                    }
+                }
+            },
+            focus: function(){
+                var self = this;
+                if(self.ipoForm.matchArr.length == 0){
+                    self.dataArr.forEach(function(item){
+                        self.ipoForm.matchArr.push({
+                            nickname: item.nickname,
+                            nameHtml: item.nickname,
+                            stockCode: item.stockCode,
+                            codeHtml: item.stockCode,
+                            stockId: item.stockId,
+                            ipoStatus: item.ipoStatus,
+                        });
+                    });
+                }
+                this.ipoForm.focus = true;
+                this.ipoForm.ipoNameCode = '';
+            },
+            choose: function(val){
+                this.ipoForm.focus = false;
+                this.highPrice = 0;
+                this.lowPrice = 0;
+                vm.getIPOInfo(val);
+            },
+            closeLeft: function(){
+                this.ipoForm.focus = false;
+            },
+            getIPOInfo: function(val){
+                if(!val) return;
+                vm.getOrderData(val.stockCode, val.stockId);
+                this.ipoForm.ipoNameCode = val.nickname + ' ' + val.stockCode;
+                this.ipoForm.ipoName = val.nickname;
+                this.ipoForm.ipoCode = val.stockCode;
+                this.ipoForm.stockId = val.stockId;
+                this.ipoForm.ipoStatus = val.ipoStatus;
+            },
+            confirm: function(){
+                var self = this;
+                if(!vm.dealTime){
+                    Tool.toastInfo('开盘/收盘时间: '+$api.getStorage('openingTime')+'/'+$api.getStorage('closingTime'));
+                    return;
+                }
+                if(!self.ipoForm.stockId){
+                    Tool.toastInfo('请先选择要卖出的IPO!');
+                    return;
+                }
+                if(!isMoney(self.ipoForm.ipoPrice)){
+                    Tool.toastInfo('价格输入有误!');
+                    return;
+                }
+                if(!self.ipoForm.ipoNum){
+                    Tool.toastInfo('数量输入有误!');
+                    return;
+                }
+                api.openFrame({
+                    name: 'confirmOrder',
+                    url: api.wgtRootDir +'/home/deal/confirmOrder.html',
+                    rect: {
+                        x: 0,
+                        y: 0,
+                        w: api.winWidth,
+                        h: api.winHeight
+                    },
+                    animation: {
+                        type:"push",
+                        subType:"from_bottom",
+                        duration:300
+                    },
+                    pageParam: {
+                        type: "转让", //1：买；2：卖
+                        name: self.ipoForm.ipoName,
+                        code: self.ipoForm.ipoCode,
+                        price: self.ipoForm.ipoPrice,
+                        num: self.ipoForm.ipoNum,
+                        stockId: self.ipoForm.stockId,
+                        money: (self.ipoForm.ipoPrice*self.ipoForm.ipoNum).toFixed(2),
+                        ipoStatus: self.ipoForm.ipoStatus,
+                    }
+                });
+            },
+            getData: function(){
+                var self = this;
+                self.dataArr = [];
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/stockList', //获取股票索引列表
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token')
+                        },
+                    }
+                }, function(ret, err) {
+                    if (ret && ret.code == 0) {
+                        if(ret.data && ret.data.length){
+                            ret.data.forEach(function(item){
+                                if(!item.nickname) item.nickname = '';
+                                if(item.ipoStatus != Enum.IPOStatus[0].key){
+                                    self.dataArr.push(item);
+                                }
+
+                            });
+                            if(vm.dataArr.length && $api.getStorage('sellStockId')){
+                                vm.choose(vm.dataArr.filter(function(item){
+                                    return item.stockId == $api.getStorage('sellStockId');
+                                })[0]);
+                                setTimeout(function(){
+                                    $api.setStorage('sellStockId', '');
+                                }, 500);
+                            }
+                        }
+                    }
+                });
+            },
+            getALLDealList: function(){
+                var self = this;
+                self.sellList = [];
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getALLDealList',
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            investorId: $api.getStorage('userId'),
+                            type: Enum.DealType.Sell,
+                        },
+                    }
+                }, function(ret, err) {
+                    if (ret && ret.code == 0) {
+                        if(ret.data && ret.data.length){
+                            ret.data.forEach(function(item){
+                                for(var i in item){
+                                    item[i] = item[i] == null ? '' : item[i];
+                                }
+                            });
+                            self.sellList = Tool.arrSort(ret.data, 'createTime');
+                            self.sellList = self.sellList.filter(function(item){
+                                return item.status != '4'; //过滤撤单中的挂单
+                            });
+                            vm.listMsg = LoadAll;
+                        }else{
+                            vm.listMsg = HasNotData;
+                        }
+                    }else{
+                        vm.listMsg = HasNotData;
+                    }
+                });
+            },
+            getOrderData: function(stockCode, stockId){
+                var self = this;
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getNewestBuyOrder', //最新的买入记录5条
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            stockCode: stockCode
+                        },
+                    }
+                }, function(ret, err) {
+                    if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                        if(ret.data.length < 5){
+                            var len = ret.data.length
+                            for(var i=0;i<5-len;i++){ //补足五条数据
+                                ret.data.push({
+                                    price: '--',
+                                    amount: '--',
+                                });
+                            }
+                        }
+                        self.buyArr = ret.data;
+                    }else{
+                        var arr = [];
+                        for(var i=0;i<5;i++){ //补足五条数据
+                            arr.push({
+                                price: '--',
+                                amount: '--',
+                            });
+                        }
+                        self.buyArr = arr;
+                    }
+                });
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getNewestSellOrder', //最新的卖出记录5条
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            stockCode: stockCode
+                        },
+                    }
+                }, function(ret, err) {
+                    if (ret && ret.code == 0 && ret.data && ret.data.length) {
+                        if(ret.data.length < 5){
+                            var len = ret.data.length
+                            for(var i=0;i<5-len;i++){ //补足五条数据
+                                ret.data.unshift({
+                                    price: '--',
+                                    amount: '--',
+                                });
+                            }
+                        }
+                        self.sellArr = ret.data;
+                    }else{
+                        var arr = [];
+                        for(var i=0;i<5;i++){ //补足五条数据
+                            arr.unshift({
+                                price: '--',
+                                amount: '--',
+                            });
+                        }
+                        self.sellArr = arr;
+                    }
+                });
+                api.ajax({
+                    url: SERVER_PATH + 'Deal/getDealFluctuation', //获取交易价格上限及下限
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            stockId: stockId
+                        },
+                    }
+                }, function(ret, err) {
+                    if (ret && ret.code == 0) {
+                        try {
+                            self.highPrice = +ret.data.upPrice;
+                            self.lowPrice = +ret.data.downPrice;
+                            if(self.ipoForm.ipoStatus == Enum.IPOStatus[1].key){ //ipo已完成
+                                self.ipoForm.ipoPrice = (Number(ret.data.upPrice)/2 + Number(ret.data.downPrice)/2).toFixed(2);
+                            }
+                        } catch (e) {
+                            self.highPrice = 0;
+                            self.lowPrice = 0;
+                        }
+                    }
+                });
+            },
+            loadMore: function(){
+                var self = this;
+                Tool.loadMore(function(){
+                    if (self.page && self.maxPage) {
+                        if (parseInt(self.page) < parseInt(self.maxPage)) {
+                            self.page++;
+                            vm.getData();
+                        } else {
+                            Tool.toastInfo('没有更多数据了~', 1500, 'bottom');
+                        }
+                    }
+                });
+            },
+            cancelOrder: function(id,stockCode){
+                Tool.confirm('确定撤单?', 'cancelOrderOnSellPage');
+                api.addEventListener({
+                    name: 'cancelOrderOnSellPage'
+                }, function(ret, err){
+                    if( ret ){
+                        api.ajax({
+                            url: SERVER_PATH + 'Deal/cancelOrder',
+                            method: 'post',
+                            data: {
+                                values: {
+                                    AccessToken: $api.getStorage('token'),
+                                    orderId: id,
+                                    stockCode: stockCode,
+                                    type: Enum.DealType.Sell,
+                                },
+                            }
+                        }, function(ret, err) {
+                            if(ret && ret.code == 0){
+                                Tool.toastInfo(ret.msg || '撤单成功')
+                                vm.getALLDealList();
+                            }else{
+                                Tool.toastInfo(errMsg);
+                            }
+                        });
+                    }
+                });
+            },
+            refresh: function(){
+                var self = this;
+                Tool.refreshPage(function(){
+                    if(self.ipoForm.stockId && self.ipoForm.ipoStatus == Enum.IPOStatus[1].key && $api.getStorage('sellStockId') == ''){
+                        $api.setStorage('sellStockId', self.ipoForm.stockId);
+                    }
+                    vm.checkDealTime();
+                    vm.getData();
+                    vm.getALLDealList();
+                });
+            },
+            /*检查当前时间是否在开盘收盘区间*/
+            checkDealTime: function(){
+                var curTime = Tool.formatDate(new Date(), 'HH:ii');
+                var openingTime = $api.getStorage('openingTime');
+                var closingTime = $api.getStorage('closingTime');
+                if(openingTime === "undefined" || closingTime === "undefined") return;
+                if(openingTime > closingTime){
+                    if(curTime > openingTime && curTime < "24:00" ||
+                        curTime < closingTime && curTime > "00:00"){
+                            vm.dealTime = 1;
+                        }else{
+                            vm.dealTime = 0;
+                        }
+                }else{
+                    if(curTime > openingTime && curTime < closingTime){
+                        vm.dealTime = 1;
+                    }else{
+                        vm.dealTime = 0;
+                    }
+                }
+            }
+        },
+        created(){
+            FastClick.attach(document.body);
+        },
+        watch: {
+            'ipoForm.ipoNameCode': function(newVal, oldVal){
+                var self = this;
+                self.ipoForm.matchArr = [];
+                this.dataArr.forEach(function(value){
+                    if(value.nickname.indexOf(newVal)>-1){
+                        self.ipoForm.matchArr.push({
+                            nickname: value.nickname,
+                            nameHtml: value.nickname.replace(newVal, '<span style="color: #f01457;">'+newVal+'</span>'),
+                            stockCode: value.stockCode,
+                            codeHtml: value.stockCode,
+                            stockId: value.stockId,
+                            ipoStatus: value.ipoStatus,
+                        });
+                    }else if(value.stockCode.indexOf(newVal)>-1){
+                        self.ipoForm.matchArr.push({
+                            nickname: value.nickname,
+                            nameHtml: value.nickname,
+                            stockCode: value.stockCode,
+                            codeHtml: value.stockCode.replace(newVal, '<span style="color: #f01457;">'+newVal+'</span>'),
+                            stockId: value.stockId,
+                            ipoStatus: value.ipoStatus,
+                        });
+                    }
+                });
+            },
+            'ipoForm.ipoNum': function(newVal, oldVal){
+                this.ipoForm.ipoNum = parseInt(Number(newVal));
+            },
+            'ipoForm.ipoPrice': function(newVal, oldVal){
+                if(this.ipoForm.ipoNameCode && this.highPrice && newVal > this.highPrice && !this.priceFocus){
+                    Tool.toastInfo('价格不能超过'+this.highPrice);
+                    vm.ipoForm.ipoPrice = this.highPrice;
+                }
+                if(this.ipoForm.ipoNameCode && this.lowPrice && newVal < this.lowPrice && !this.priceFocus){
+                    Tool.toastInfo('价格不能低于'+this.lowPrice);
+                    vm.ipoForm.ipoPrice = this.lowPrice;
+                }
+            }
+        }
+    });
+    vm.init();
+};
+</script>
+</html>

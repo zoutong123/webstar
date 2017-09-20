@@ -1,0 +1,166 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0,minimum-scale=1.0,user-scalable=0,initial-scale=1.0,width=device-width"/>
+    <meta name="format-detection" content="telephone=no,email=no,date=no,address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../../css/main.css" />
+</head>
+<style>
+    html,body{
+        height: 100vh;
+        position: relative;
+        background-color: rgba(0, 0, 0, 0.3) !important;
+    }
+</style>
+<body>
+    <div v-cloak class="z-confirm" id="confirmOrder" @click="close">
+        <div class="z-header aui-border-b">
+            <span class="aui-iconfont aui-icon-left aui-pull-left aui-padded-l-15 z-price-2" @click="close"></span>
+            <span style="padding-right: 1.5rem;">确认订单</span>
+        </div>
+        <ul>
+            <li class="aui-border-b"><span class="aui-padded-r-10">订单类型:</span><span>{{orderInfo.type}}</span></li>
+            <li class="aui-border-b"><span class="aui-padded-r-10">订单信息:</span><span>{{orderInfo.name}} {{orderInfo.code}}</span></li>
+            <li class="aui-border-b"><span class="aui-padded-r-10">订单价格:</span><span>{{orderInfo.price}}元/份</span></li>
+            <li class="aui-border-b"><span class="aui-padded-r-10">交易数量:</span><span>{{orderInfo.num}}份</span></li>
+            <li v-if="orderInfo.type == '买入'" class="aui-border-b"><span class="aui-padded-r-10">支付金额:</span><span>{{orderInfo.money}}元</span></li>
+            <li v-if="orderInfo.type == '卖出'" class="aui-border-b"><span class="aui-padded-r-10">总计金额:</span><span>{{orderInfo.money}}元</span></li>
+            <li @click.stop=""><input class="aui-checkbox" type="checkbox" name="checkbox" id="checkbox" v-model="ischecked"><label for="checkbox">本人已阅读以同意<a href="javascript:;" @click="viewAgreement">《风险提示函》</a></label></li>
+        </ul>
+        <div class="aui-padded-r-10 aui-padded-l-10" @click.stop="confirm"><div class="aui-btn aui-btn-danger aui-btn-block">确定</div></div>
+    </div>
+</body>
+<script type="text/javascript" src="../../script/dist/api.js"></script>
+<script type="text/javascript" src="../../script/dist/vue.js"></script>
+<script type="text/javascript" src="../../script/dist/fastclick.js"></script>
+<script type="text/javascript" src="../../script/config.js"></script>
+<script type="text/javascript" src="../../script/tool.js"></script>
+<script type="text/javascript">
+apiready = function(){
+    var vm = new Vue({
+        el: '#confirmOrder',
+        data: {
+            orderInfo: null,
+            ischecked: true
+        },
+        methods: {
+            init: function(){
+                vm.listenEvent();
+            },
+            listenEvent: function(){
+                var self = this;
+                api.addEventListener({
+                    name: 'hasDealPwd' //监听事件，验证是否设置交易密码
+                }, function(ret, err){
+                    if(ret.value.hasDealPwd){
+                        Tool.checkDealPwd('checkDealPwdAtConfirmOrderPage');
+                    }else{
+                        Tool.confirm('请先设置交易密码', 'setFealPwd');
+                    }
+                });
+                api.addEventListener({
+                    name: 'checkDealPwdAtConfirmOrderPage' //监听事件，验证交易密码正确
+                }, function(ret, err){
+                    vm.submitOrder(ret.value.password);
+                });
+                api.addEventListener({
+                    name: 'setFealPwd'
+                }, function(ret, err){
+                    Tool.openHeader({
+                        frame: {
+                            title: '设置交易密码',
+                            url: api.wgtRootDir + '/home/userCenter/setDealPwd_step1.html',
+                        }
+                    });
+                });
+            },
+            close: function(){
+                api.closeFrame({
+                    name: 'confirmOrder'
+                });
+            },
+            confirm: function(){
+                var self = this;
+                if(!this.ischecked){
+                    Tool.toastInfo('请先同意协议!');
+                    return;
+                }
+                Tool.hasDealPwd('hasDealPwd');
+            },
+            submitOrder: function(pwd){
+                var self = this;
+                log(this.orderInfo)
+                if(this.orderInfo.type === "收购"){
+                    if(this.orderInfo.ipoStatus == Enum.IPOStatus[0].key){  //IPO进行中
+                        var ajaxApi = SERVER_PATH + 'Deal/IpoDeal';
+                    }else{
+                        var ajaxApi = SERVER_PATH + 'Deal/submitOrder';
+                    }
+                    var type = 0;
+                }
+                if(this.orderInfo.type === "转让"){
+                    var ajaxApi = SERVER_PATH + 'Deal/submitOrder';
+                    var type = 1;
+                }
+                api.showProgress();
+                api.ajax({
+                    url: ajaxApi,
+                    method: 'post',
+                    data: {
+                        values: {
+                            AccessToken: $api.getStorage('token'),
+                            stockId: self.orderInfo.stockId,
+                            stockCode: self.orderInfo.code,
+                            investorId: $api.getStorage('userId'),
+                            price: self.orderInfo.price,
+                            amount: self.orderInfo.num,
+                            type: type,
+                            dealPass: pwd
+                        },
+                        files: {}
+                    }
+                }, function(ret, err) {
+                    api.hideProgress();
+                    if (ret && ret.code == 0) {
+                        Tool.toastInfo(ret.msg || '创建订单成功');
+                        setTimeout(function(){
+                            api.closeFrame({
+                                name: 'confirmOrder'
+                            });
+                        }, 1500);
+                        if(type == 0){
+                            api.sendEvent({ //挂单买入成功，局部刷新买入页面挂单列表
+                                name: 'buyOk'
+                            });
+                        }
+                        if(type == 1){
+                            api.sendEvent({ //挂单卖出成功，局部刷新卖出页面挂单列表
+                                name: 'sellOk'
+                            });
+                        }
+                    } else {
+                        Tool.toastInfo(ret.msg || errMsg);
+                    }
+                });
+            },
+            viewAgreement: function(){
+                Tool.openHeader({
+                    frame: {
+                        title: '风险提示函',
+                        url: 'http://webstar.yingfankeji.net/Html/agreement.html'
+                    }
+                });
+            }
+        },
+        created(){
+            log(api.pageParam)
+            this.orderInfo = api.pageParam;
+        }
+    });
+    vm.init();
+};
+</script>
+</html>

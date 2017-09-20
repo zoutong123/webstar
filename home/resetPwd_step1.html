@@ -1,0 +1,221 @@
+<!DOCTYPE HTML>
+<html class="sign">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="maximum-scale=1.0, minimum-scale=1.0, user-scalable=0, initial-scale=1.0, width=device-width" />
+    <meta name="format-detection" content="telephone=no, email=no, date=no, address=no">
+    <title></title>
+    <link rel="stylesheet" type="text/css" href="../css/aui/aui.css" />
+    <link rel="stylesheet" type="text/css" href="../css/main.css" />
+</head>
+<body style="background-color: #fff;">
+    <div v-cloak id="resetPwd" class="resetPwd">
+        <div class="aui-content aui-margin-b-15">
+            <ul class="aui-list aui-form-list z-no-bt">
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/phone.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input">
+                            <!-- <span class="z-prefix-phone aui-border-r">+86</span> -->
+                            <input class="z-phone" type="tel" v-model="phone" placeholder="输入手机号" v-focus="phoneFocus" @blur="blur(1)">
+                        </div>
+                    </div>
+                </li>
+                <li class="aui-list-item aui-border-b">
+                    <div class="aui-list-item-inner">
+                        <div class="aui-list-item-label-icon">
+                            <img class="z-icon" src="../image/smsCode.png" alt="">
+                        </div>
+                        <div class="aui-list-item-input z-pos-rel">
+                            <input type="tel" v-model="verifyCode" placeholder="输入验证码" v-focus="captchaFocus" @blur="blur(2)">
+                            <div class="z-smsBtn aui-border" @click="getCaptcha">{{captchaBtnText}}</div>
+                        </div>
+                    </div>
+                </li>
+            </ul>
+             <p class="aui-margin-t-15">
+                 <div class="aui-btn aui-btn-danger aui-btn-block z-btn" :class="{bgCCC:active}" @click="next">下一步</div>
+             </p>
+        </div>
+    </div>
+</body>
+<script type="text/javascript" src="../script/dist/api.js"></script>
+<script type="text/javascript" src="../script/dist/vue.js"></script>
+<script type="text/javascript" src="../script/config.js"></script>
+<script type="text/javascript" src="../script/tool.js"></script>
+<script type="text/javascript">
+    apiready = function(){
+        var interval,time = 60;
+        var vm = new Vue({
+            el: "#resetPwd",
+            data: {
+                getSMSApi : SERVER_PATH + 'Tools/sendVerifyCode',
+                checkSMSCode: SERVER_PATH + 'Tools/checkVerifyCode',
+                phone : $api.getStorage('phone') || "",
+                verifyCode : "",
+                captchaBtnText: "获取",
+                getCaptchaIng : false,
+                active: true,
+                phoneFocus: true,
+                captchaFocus: false
+            },
+            directives:{
+                focus: {
+                    inserted: function (el, binding) {
+                        if(binding.value) el.focus();
+                    },
+                    update: function (el, binding) {
+                        if(binding.value) el.focus();
+                    }
+                }
+        　　},
+            methods: {
+                init: function(){
+                    this.listenEvent();
+                },
+                blur: function(param){
+                    if(param == 1) this.phoneFocus = false;
+                    if(param == 2) this.captchaFocus = false;
+                },
+                listenEvent: function(){
+                    var self = this;
+                    api.addEventListener({
+                        name: 'resetInputAtResetPwd_step1'
+                    }, function(ret, err){
+                        clearInterval(interval); //清除计时器
+                        self.getCaptchaIng = false;
+                        self.captchaBtnText = "获取";
+                        time = 60;
+                        self.verifyCode = "";
+                    });
+                },
+                next: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        Tool.toastInfo('手机号格式不正确');
+                        return;
+                    }
+                    if(!isCaptcha(self.verifyCode)){
+                        Tool.toastInfo('验证码格式有误');
+                        return;
+                    }
+                    if(self.active){
+                        return;
+                    }
+                    self.active = true;
+                    api.showProgress();
+                    api.ajax({
+                        url: self.checkSMSCode,
+                        method: 'post',
+                        data: {
+                            values: {
+                                phone: self.phone,
+                                verifyCode: self.verifyCode,
+                            }
+                        }
+                    }, function(ret, err) {
+                        api.hideProgress();
+                        if (ret) {
+                            if(ret.code == 0){
+                                self.active = false;
+                                Tool.toastInfo(ret.msg || okMsg);
+                                Tool.openHeader({
+                                    name: 'resetPwd_step2',
+                                    frame: {
+                                        title: '找回密码',
+                                        url: api.wgtRootDir + '/home/resetPwd_step2.html',
+                                        param: {
+                                            phone: self.phone,
+                                            verifyCode: self.verifyCode,
+                                        }
+                                    }
+                                });
+                            }else{
+                                self.active = false;
+                                Tool.toastInfo(ret.msg || errMsg);
+                            }
+                        } else {
+                            self.active = false;
+                            Tool.toastInfo(errMsg);
+                        }
+                    });
+                },
+                checkForm: function(){
+                    var self = this;
+                    if(!isPhone(self.phone)){
+                        return false;
+                    }
+                    if(!isCaptcha(self.verifyCode)){
+                        return false;
+                    }
+                    return true;
+                },
+                getCaptcha: function(){
+                    var self = this;
+                    if(self.getCaptchaIng){
+                        return;
+                    }
+                    self.getCaptchaIng = true;
+                    if(!isPhone(self.phone)){
+                        self.getCaptchaIng = false;
+                        Tool.toastInfo('手机号格式不正确');
+                        return;
+                    }else{
+                        api.showProgress();
+                        api.ajax({
+                            url: self.getSMSApi,
+                            method: 'post',
+                            data: {
+                                values: {
+                                    phone : self.phone,
+                                    type: 2
+                                }
+                            }
+                        }, function(ret, err) {
+                            api.hideProgress();
+                            if (ret) {
+                                if(ret.code == 0){
+                                    interval = setInterval(refreshGetCaptcha, 1000); //创建计时器
+                                    Tool.toastInfo(ret.msg  || okMsg);
+                                    self.captchaFocus = true;
+                                }else{
+                                    Tool.toastInfo(ret.msg  || errMsg);
+                                    self.getCaptchaIng = false;
+                                }
+                            } else {
+                                Tool.toastInfo(errMsg);
+                                self.getCaptchaIng = false;
+                            }
+                        });
+                    }
+                    function refreshGetCaptcha() {
+                        self.captchaBtnText = time + 's';
+                        time--;
+                        if(time < 0) {
+                            clearInterval(interval); //清除计时器
+                            self.getCaptchaIng = false;
+                            self.captchaBtnText = "获取";
+                            time = 60;
+                        }
+                    }
+                }
+            },
+            watch: {
+                phone: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.active = false;
+                    if(!bool) this.active = true;
+                },
+                verifyCode: function(){
+                    var bool = vm.checkForm();
+                    if(bool) this.active = false;
+                    if(!bool) this.active = true;
+                }
+            }
+        });
+        vm.init();
+    }
+</script>
+</html>
